@@ -7,7 +7,7 @@ Release assets (hashes from `release/v2.5/SHA256SUMS.v2.5.2`):
 | `v2.5.2-from-upstream-v0.30.0.bundle` (uncompressed; the asset is the `.gz`; attached to the `v2.5.2` release) | `ab70e1a39768d4ae016f7f9f0ae99165c20c0e0136579f557084218cef8bd685` |
 | `v2.5.2-from-upstream-v0.30.0.bundle.gz` (as downloaded) | `b154901627a985ce5469d4aebc2a15dbd07bb2c3e5c38f9517bdde9ae55ee0e2` |
 | `build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz` (v2.2.0's asset, reused unchanged; attached to the `v2.2.0` release) | `cdca5ffcb3003d15e00896f0969134e16d7bfbe0a3c6dfe10698bec32573f592` |
-| `build-artifacts.list` | `2befac68d349aea26e0b35f59f4d04eda6c652ae7037f48fab8920c33ab5e432` |
+| `build-artifacts.list` (attached to the `v2.5.2` release; the same file as `release/v2.5/build-artifacts.list` in this tree) | `2befac68d349aea26e0b35f59f4d04eda6c652ae7037f48fab8920c33ab5e432` |
 
 The bundle's prerequisite is the public vLLM tag `v0.30.0` (`ced6857afa0ea7b2e3f0846a62e1394e90f15607`); it carries
 `refs/heads/v2.5.2-public` = `de6e2c2fe9e02a9f70a5ff6f313aa45abc43b84c`, tree
