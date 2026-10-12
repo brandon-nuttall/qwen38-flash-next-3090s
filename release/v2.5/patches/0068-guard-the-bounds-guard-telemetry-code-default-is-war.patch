@@ -1,7 +1,7 @@
 From 263bd02e3344175daa8686d1da04e262c6bc43a2 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Thu, 1 Oct 2026 05:05:23 -0400
-Subject: [PATCH 68/97] guard: the bounds-guard telemetry code default is warn
+Subject: [PATCH 68/98] guard: the bounds-guard telemetry code default is warn
 
 VLLM_E2_GUARD_MODE now defaults to warn in code, matching what the shipped launchers set; v2 through v2.2.0
 defaulted to off. The comment above it, the MODES docstring, the vllm/envs.py default and its annotation follow.

@@ -1,7 +1,7 @@
 From 5428cfcf11430c1935e4a18bebeab8e389605f6f Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 30 Sep 2026 07:35:13 +0200
-Subject: [PATCH 78/97] recoverssm: align commit: fold final states before
+Subject: [PATCH 78/98] recoverssm: align commit: fold final states before
  boundary states (port of upstream #58863, 3388ba1a25)
 
 Port of the upstream vLLM change #58863 (Apache-2.0). The final-state folds run before the boundary-state folds, because in align

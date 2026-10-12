@@ -1,7 +1,7 @@
 From 250a73c5cf4ff9ead2b1172456b714b3e0f83deb Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Mon, 28 Sep 2026 20:46:22 +0800
-Subject: [PATCH 65/97] ple: reduce PLE metadata construction overhead (port of
+Subject: [PATCH 65/98] ple: reduce PLE metadata construction overhead (port of
  upstream #58114)
 
 Port of the upstream vLLM change #58114 (Apache-2.0). Applied cleanly, including the NVIDIA and AMD PLE layers; the pull transport

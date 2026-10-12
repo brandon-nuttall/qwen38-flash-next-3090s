@@ -1,7 +1,7 @@
 From ef47116176cefc7a2ad04952b916585edc71b19d Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Thu, 24 Sep 2026 01:36:08 -0400
-Subject: [PATCH 57/97] engine, executor: drain-order shutdown
+Subject: [PATCH 57/98] engine, executor: drain-order shutdown
 
 - EngineCore survives a late SIGTERM during teardown (bounded deferral) so
   every worker drains its guard telemetry.

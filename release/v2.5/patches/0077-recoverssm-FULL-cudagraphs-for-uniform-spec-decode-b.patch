@@ -1,7 +1,7 @@
 From e9d4739a06eeece15afd6e15950ea03579871f06 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 30 Sep 2026 07:11:03 +0200
-Subject: [PATCH 77/97] recoverssm: FULL cudagraphs for uniform spec-decode
+Subject: [PATCH 77/98] recoverssm: FULL cudagraphs for uniform spec-decode
  batches (port of upstream #58863, 3aa3d5b586)
 
 Port of the upstream vLLM change #58863 (Apache-2.0). The GDN and PLE RecoverSSM metadata builders declare UNIFORM_BATCH, so

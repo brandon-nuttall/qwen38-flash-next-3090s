@@ -1,5 +1,5 @@
 [Unit]
-Description=Flash-Next v2.5.1 (Qwen3.8-Flash-Next-W4A16-Merlin, 925K KV pool on 4x RTX 3090)
+Description=Flash-Next v2.5.2 (Qwen3.8-Flash-Next-W4A16-Merlin, 925K KV pool on 4x RTX 3090)
 After=network-online.target
 Wants=network-online.target
 

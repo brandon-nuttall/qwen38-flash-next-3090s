@@ -1,7 +1,7 @@
 From 96a0d13b6e98ad4ef86e66a3f6ddb5dd9199a591 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 6 Oct 2026 02:49:52 -0400
-Subject: [PATCH 97/97] kv cache: hold a finished turn's prefix until its next
+Subject: [PATCH 97/98] kv cache: hold a finished turn's prefix until its next
  turn is admitted
 
 With a prefix unit finer than the block, a hybrid follow-up resumes from

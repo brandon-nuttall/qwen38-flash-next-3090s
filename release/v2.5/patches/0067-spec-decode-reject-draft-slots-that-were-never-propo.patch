@@ -1,7 +1,7 @@
 From 382c59e275ef1326e67fd9df83345bd8861cf455 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Mon, 28 Sep 2026 13:07:15 -0700
-Subject: [PATCH 67/97] spec-decode: reject draft slots that were never
+Subject: [PATCH 67/98] spec-decode: reject draft slots that were never
  proposed (port of upstream #58784)
 
 Port of the upstream vLLM change #58784 (Apache-2.0). Draft slots the drafter never filled are rejected instead of being verified.

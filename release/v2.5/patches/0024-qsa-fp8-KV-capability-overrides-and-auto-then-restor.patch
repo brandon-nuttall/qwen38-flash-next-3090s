@@ -1,7 +1,7 @@
 From 32ecafbad8805d96666352b1960eb3a0e8018e05 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:17:29 -0400
-Subject: [PATCH 24/97] qsa: fp8 KV capability overrides and auto-then-restore
+Subject: [PATCH 24/98] qsa: fp8 KV capability overrides and auto-then-restore
  construction (from upstream #55557)
 
 The QSA backend answers the KV-dtype and combination capability checks for its

@@ -1,7 +1,7 @@
 From 7d2f939d3ae80bc8a70669a37389e2ea192e991f Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:08:13 -0400
-Subject: [PATCH 01/97] worker: capture-safe guard-telemetry infrastructure,
+Subject: [PATCH 01/98] worker: capture-safe guard-telemetry infrastructure,
  default off
 
 Shared machinery for device-side bounds guards: persistent int64 counters per

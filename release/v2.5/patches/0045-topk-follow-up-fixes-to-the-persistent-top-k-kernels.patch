@@ -1,7 +1,7 @@
 From 563c15942a39a5f56d994451174a4ab80dbf425b Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 08:35:50 -0400
-Subject: [PATCH 45/97] topk: follow-up fixes to the persistent top-k kernels
+Subject: [PATCH 45/98] topk: follow-up fixes to the persistent top-k kernels
 
 - Counter enum declared above the decode template (two-phase lookup).
 - Emission-fault flag set atomically.

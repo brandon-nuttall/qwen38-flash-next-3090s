@@ -1,7 +1,7 @@
 From d8e843f0b6423561620ee79d817fb66f89ddb4f0 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:17:29 -0400
-Subject: [PATCH 21/97] spec-decode: structured output under concurrency on a
+Subject: [PATCH 21/98] spec-decode: structured output under concurrency on a
  PP shape
 
 Ports upstream vLLM PRs #54442 and #56802 (issue #54437): never sample from an

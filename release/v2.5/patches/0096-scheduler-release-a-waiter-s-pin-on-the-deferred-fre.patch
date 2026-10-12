@@ -1,7 +1,7 @@
 From cee9c454eae4789ad90cee7e1955a1fd3e04e41f Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 6 Oct 2026 02:49:52 -0400
-Subject: [PATCH 96/97] scheduler: release a waiter's pin on the deferred free
+Subject: [PATCH 96/98] scheduler: release a waiter's pin on the deferred free
  path too
 
 The scheduler takes pop_blocks_for_free when a step may still be in

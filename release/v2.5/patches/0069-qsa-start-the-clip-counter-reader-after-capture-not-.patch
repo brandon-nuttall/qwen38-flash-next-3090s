@@ -1,7 +1,7 @@
 From a598e7a060623050686a06ed259df97fdef4728f Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Thu, 1 Oct 2026 05:08:33 -0400
-Subject: [PATCH 69/97] qsa: start the clip-counter reader after capture, not
+Subject: [PATCH 69/98] qsa: start the clip-counter reader after capture, not
  on the first forward
 
 The FP8 KV clip counter's reader thread used to start on the first eager forward, before CUDA graph capture, so

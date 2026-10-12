@@ -1,7 +1,7 @@
 From c0a30ae373dbc68521fdc2b508def60245ddcceb Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:11:27 -0400
-Subject: [PATCH 03/97] qwen4_exp: pipeline-stage ownership for PLE, the MTP
+Subject: [PATCH 03/98] qwen4_exp: pipeline-stage ownership for PLE, the MTP
  drafter and the vision tower
 
 Each pipeline stage builds only the parts it owns: PLE when every PLE layer

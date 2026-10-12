@@ -1,7 +1,7 @@
 From bae6e58214b04f9f7d5606c2eb618144f1c0d50b Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 11:11:01 -0400
-Subject: [PATCH 53/97] e2_guards: draft identity and draft PLE guard report
+Subject: [PATCH 53/98] e2_guards: draft identity and draft PLE guard report
  the drafter's own state
 
 ---

@@ -1,7 +1,7 @@
 From ed617e26ecf9d6c45e084409ec0a7a61d748c534 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:17:29 -0400
-Subject: [PATCH 22/97] topk: exact restart of the medium path on
+Subject: [PATCH 22/98] topk: exact restart of the medium path on
  candidate-buffer overflow
 
 When the persistent top-k medium-path candidate buffer overflows, the row is

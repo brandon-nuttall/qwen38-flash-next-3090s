@@ -1,7 +1,7 @@
 From 9c27ca9a0657338852c7d3e59561d424fc036fde Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Thu, 24 Sep 2026 07:58:38 -0400
-Subject: [PATCH 58/97] executor: detect a fail-closed fault or death on any
+Subject: [PATCH 58/98] executor: detect a fail-closed fault or death on any
  rank
 
 A fault on a non-zero TP rank could hang the engine: the worker's sentinel pipe

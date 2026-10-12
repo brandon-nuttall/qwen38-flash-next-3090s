@@ -1,7 +1,7 @@
 From f244baeb68ff2f50aa48f7ebbffe9e39c924dc78 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:13:09 -0400
-Subject: [PATCH 18/97] sched: defer ring-block free under overlapping steps
+Subject: [PATCH 18/98] sched: defer ring-block free under overlapping steps
 
 A circular-buffer ring block could be freed while an earlier, still-executing
 step was reading it. The free is deferred until the overlapping step has

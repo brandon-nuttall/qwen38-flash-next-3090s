@@ -1,7 +1,7 @@
 From a9bf88f51312186e91472bbbba23acd8af2cd0a7 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 15:51:26 -0400
-Subject: [PATCH 55/97] probe: TP2 captured-replay sentinel keeps the graph's
+Subject: [PATCH 55/98] probe: TP2 captured-replay sentinel keeps the graph's
  static ids alive
 
 Test-harness lifetime fix; no served code.

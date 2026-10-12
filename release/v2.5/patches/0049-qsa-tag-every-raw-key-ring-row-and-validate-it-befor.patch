@@ -1,7 +1,7 @@
 From fb765a6da98cfb9a92afde65b18da60c2dc81c9c Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 09:58:46 -0400
-Subject: [PATCH 49/97] qsa: tag every raw-key ring row and validate it before
+Subject: [PATCH 49/98] qsa: tag every raw-key ring row and validate it before
  pooling
 
 The fused pre-indexer could read a stale or uncommitted raw-key ring row and

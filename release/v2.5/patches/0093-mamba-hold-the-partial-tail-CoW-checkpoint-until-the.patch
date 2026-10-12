@@ -1,7 +1,7 @@
 From be68b5c43071aaa28d5813053c5130ff984b7fe1 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 6 Oct 2026 02:49:51 -0400
-Subject: [PATCH 93/97] mamba: hold the partial-tail CoW checkpoint until the
+Subject: [PATCH 93/98] mamba: hold the partial-tail CoW checkpoint until the
  request is freed
 
 With --prefix-match-unit below the block size, a follow-up turn that

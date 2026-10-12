@@ -1,7 +1,7 @@
 From aff5f58a0f90637d23f80d79e7ae577c16b98e23 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:11:43 -0400
-Subject: [PATCH 05/97] executor: workers cannot outlive a killed EngineCore
+Subject: [PATCH 05/98] executor: workers cannot outlive a killed EngineCore
 
 Workers set PR_SET_PDEATHSIG(SIGKILL) against their EngineCore parent with a
 getppid race check. Start methods other than fork/spawn are refused before any

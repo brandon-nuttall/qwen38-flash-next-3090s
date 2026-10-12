@@ -1,7 +1,7 @@
 From ec66324bfd3a794d28d8bd2ed60b69f82e28cdf1 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:13:08 -0400
-Subject: [PATCH 15/97] sched: optional host-side ownership check before a
+Subject: [PATCH 15/98] sched: optional host-side ownership check before a
  block is zeroed
 
 Host-side diagnostic behind VLLM_E2_ZERO_OWNERSHIP_CHECK, off by default.

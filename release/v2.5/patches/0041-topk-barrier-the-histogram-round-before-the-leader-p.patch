@@ -1,7 +1,7 @@
 From f4122c1c500d25b4d95160f3e88336dc28bde846 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 08:31:18 -0400
-Subject: [PATCH 41/97] topk: barrier the histogram round before the leader
+Subject: [PATCH 41/98] topk: barrier the histogram round before the leader
  publishes arrival
 
 In radix_topk's large-path round loop the leader published arrival with no

@@ -1,7 +1,7 @@
 From 6bf89fe31e7ca38a4e303c289ab34006d9e6fda5 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:13:10 -0400
-Subject: [PATCH 20/97] sched: scheduler allocation log for KV capacity probes
+Subject: [PATCH 20/98] sched: scheduler allocation log for KV capacity probes
 
 Env-gated per-step log of blocks allocated and freed and scheduled tokens per
 request; prefix-cache hits are read behind a schema check so an upstream field

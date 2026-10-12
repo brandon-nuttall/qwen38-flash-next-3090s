@@ -1,7 +1,7 @@
 From 46ead3f29f03cf92747a353c5096a6badeaaefe4 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 07:16:45 -0400
-Subject: [PATCH 35/97] ple: the pull wait/copy op is a graph splitting op
+Subject: [PATCH 35/98] ple: the pull wait/copy op is a graph splitting op
 
 With the wait/copy inside a compiled piece, Inductor's post-grad
 auto-functionalization decomposition failed on the stage-0 ranks.

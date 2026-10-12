@@ -1,7 +1,7 @@
 From 9c61aee3b6d91be6eef93a43f856f63634b37e0e Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 29 Sep 2026 18:16:59 -0700
-Subject: [PATCH 74/97] recoverssm: release the RecoverSSM step after CUDA
+Subject: [PATCH 74/98] recoverssm: release the RecoverSSM step after CUDA
  graph memory profiling (port of upstream #58863, fdcc43cf3e)
 
 Port of the upstream vLLM change #58863 (Apache-2.0). The step recorded during graph-capture dummy runs held the profiling KV cache

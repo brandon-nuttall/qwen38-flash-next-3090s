@@ -1,7 +1,7 @@
 From 292d46899fe7278830a0d9b1342751e502c31d08 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Mon, 21 Sep 2026 20:31:26 -0400
-Subject: [PATCH 60/97] spec-decode: annotate MTP draft KV cache groups
+Subject: [PATCH 60/98] spec-decode: annotate MTP draft KV cache groups
  positionally on the hybrid path (port of upstream #55390)
 
 Port of the upstream vLLM change #55390 (Apache-2.0). On the hybrid grouping path the MTP draft's KV cache group is identified by

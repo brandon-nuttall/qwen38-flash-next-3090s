@@ -1,7 +1,7 @@
 From d9f27dc909d8d94e7e2577d947bd436372a369a8 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:18:16 -0400
-Subject: [PATCH 27/97] worker: debug-gated diagnostics for Mamba slot
+Subject: [PATCH 27/98] worker: debug-gated diagnostics for Mamba slot
  ownership and guard encoding
 
 - Host-side Mamba slot-ownership check (off|warn|raise, default off) with a

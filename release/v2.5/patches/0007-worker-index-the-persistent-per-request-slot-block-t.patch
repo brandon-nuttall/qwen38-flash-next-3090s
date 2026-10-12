@@ -1,7 +1,7 @@
 From 6106ec35acedb9500435458bcac0803e27fec3ab Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:12:35 -0400
-Subject: [PATCH 07/97] worker: index the persistent per-request-slot block
+Subject: [PATCH 07/98] worker: index the persistent per-request-slot block
  table under PP
 
 Under pipeline parallelism the Mamba/GDN state-copy path indexed a block-table

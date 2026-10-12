@@ -1,7 +1,7 @@
 From 7546a25f9282c33b3773611387e4f8f6a464fcb3 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:09:54 -0400
-Subject: [PATCH 02/97] qwen4_exp: FP8 E4M3 KV reader for QSA with a static
+Subject: [PATCH 02/98] qwen4_exp: FP8 E4M3 KV reader for QSA with a static
  scale sidecar
 
 FP8 E4M3 KV read path for the Qwen4Exp sparse attention (QSA), indexer and

@@ -1,7 +1,7 @@
 From 402dba872db93a017a04b20dc49df49e48115c05 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 04:45:12 -0400
-Subject: [PATCH 34/97] qwen4_exp: restore torch.compile on the NVIDIA path;
+Subject: [PATCH 34/98] qwen4_exp: restore torch.compile on the NVIDIA path;
  exact breakable pin; runtime graph-mode assertion
 
 - torch.compile restored on the NVIDIA Qwen4Exp target and MTP so the

@@ -1,7 +1,7 @@
 From 708305cf1c9b0e470325cba9f4717a61d4441b4f Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Fri, 2 Oct 2026 04:09:20 -0400
-Subject: [PATCH 86/97] sched: keep the running request's Mamba prefix
+Subject: [PATCH 86/98] sched: keep the running request's Mamba prefix
  checkpoint referenced until it finishes
 
 In Mamba align mode a state block leaves the block table once the request has computed one block past it. When

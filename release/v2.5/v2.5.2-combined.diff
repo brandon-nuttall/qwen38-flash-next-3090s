@@ -32860,10 +32860,10 @@ index a6b3c373fa..fc15a40d03 100644
  # torch 2.9 Inductor PythonWrapperCodegen monkeypatch
  # ===================================================
 diff --git a/vllm/envs.py b/vllm/envs.py
-index 6158f86f89..4a409746ad 100755
+index 6158f86f89..081206306b 100755
 --- a/vllm/envs.py
 +++ b/vllm/envs.py
-@@ -298,6 +298,195 @@ if TYPE_CHECKING:
+@@ -298,6 +298,198 @@ if TYPE_CHECKING:
      VLLM_MULTI_STREAM_GEMM_TOKEN_THRESHOLD: int = 1024
      VLLM_COMPILE_CACHE_SAVE_FORMAT: Literal["binary", "unpacked"] = "binary"
      VLLM_USE_V2_MODEL_RUNNER: bool | None = None
@@ -32973,6 +32973,9 @@ index 6158f86f89..4a409746ad 100755
 +    # arguments and the captured graph do not depend on either.
 +    VLLM_E2_GUARD_MODE: str = "warn"
 +    VLLM_E2_GUARD_INTERVAL: str = "0.05"
++    # Guard reader idle quiesce: "1" (default) parks the reader with no device
++    # work while the engine is idle, "0" polls forever. Reader thread only.
++    VLLM_E2_GUARD_IDLE: str = "1"
 +    # Debug allocator telemetry (poll seconds + output directory) and the
 +    # scheduler allocation log path.
 +    VLLM_E2_MEMSTATS: str = "0"
@@ -33059,7 +33062,7 @@ index 6158f86f89..4a409746ad 100755
      VLLM_LOG_MODEL_INSPECTION: bool = False
      VLLM_DEBUG_MFU_METRICS: bool = False
      VLLM_WEIGHT_OFFLOADING_DISABLE_PIN_MEMORY: bool = False
-@@ -323,6 +512,167 @@ if TYPE_CHECKING:
+@@ -323,6 +515,167 @@ if TYPE_CHECKING:
      VLLM_GPU_NIC_PCIE_MAPPING: str = ""
      VLLM_NIC_SELECTION_VARS: str = ""
      VLLM_ENABLE_HPC_OPS: bool = False
@@ -33227,7 +33230,7 @@ index 6158f86f89..4a409746ad 100755
  
  
  def get_default_cache_root():
-@@ -597,6 +947,47 @@ def _resolve_rust_cli_path() -> str | None:
+@@ -597,6 +950,47 @@ def _resolve_rust_cli_path() -> str | None:
      return raw
  
  
@@ -33275,7 +33278,7 @@ index 6158f86f89..4a409746ad 100755
  environment_variables: dict[str, Callable[[], Any]] = {
      # ================== Installation Time Env Vars ==================
      # Target device of vLLM, supporting [cuda (by default),
-@@ -2037,6 +2428,56 @@ environment_variables: dict[str, Callable[[], Any]] = {
+@@ -2037,6 +2431,57 @@ environment_variables: dict[str, Callable[[], Any]] = {
      "VLLM_USE_V2_MODEL_RUNNER": lambda: maybe_convert_bool(
          os.getenv("VLLM_USE_V2_MODEL_RUNNER", None)
      ),
@@ -33308,6 +33311,7 @@ index 6158f86f89..4a409746ad 100755
 +        os.getenv("VLLM_E2_GUARD_MODE", "warn").strip().lower()
 +    ),
 +    "VLLM_E2_GUARD_INTERVAL": lambda: os.getenv("VLLM_E2_GUARD_INTERVAL", "0.05"),
++    "VLLM_E2_GUARD_IDLE": lambda: os.getenv("VLLM_E2_GUARD_IDLE", "1").strip(),
 +    "VLLM_E2_MEMSTATS": lambda: os.getenv("VLLM_E2_MEMSTATS", "0"),
 +    "VLLM_E2_MEMSTATS_DIR": lambda: os.getenv("VLLM_E2_MEMSTATS_DIR", ""),
 +    "VLLM_E2_SCHED_LOG": lambda: os.getenv("VLLM_E2_SCHED_LOG", ""),
@@ -33332,7 +33336,7 @@ index 6158f86f89..4a409746ad 100755
      # Log model inspection after loading.
      # If enabled, logs a transformers-style hierarchical view of the model
      # with quantization methods and attention backends.
-@@ -2170,6 +2611,77 @@ environment_variables: dict[str, Callable[[], Any]] = {
+@@ -2170,6 +2615,77 @@ environment_variables: dict[str, Callable[[], Any]] = {
      # Each op additionally checks its own shape / dtype constraints and falls
      # back to the eager path when they do not hold.
      "VLLM_ENABLE_HPC_OPS": lambda: bool(int(os.getenv("VLLM_ENABLE_HPC_OPS", "0"))),
@@ -33410,7 +33414,7 @@ index 6158f86f89..4a409746ad 100755
  }
  
  
-@@ -2338,6 +2850,77 @@ def compile_factors() -> dict[str, object]:
+@@ -2338,6 +2854,79 @@ def compile_factors() -> dict[str, object]:
          "LOCAL_RANK",
          "CUDA_VISIBLE_DEVICES",
          "NO_COLOR",
@@ -33428,9 +33432,11 @@ index 6158f86f89..4a409746ad 100755
 +        # Guard telemetry: counter() returns a real [3] int64 view in every
 +        # mode, so the Triton arguments and the captured graph are identical;
 +        # the mode only gates the side reader thread and the check_pending
-+        # raise, and the interval is that thread's poll cadence.
++        # raise, and the interval is that thread's poll cadence; the idle
++        # switch only decides whether that thread parks while idle.
 +        "VLLM_E2_GUARD_MODE",
 +        "VLLM_E2_GUARD_INTERVAL",
++        "VLLM_E2_GUARD_IDLE",
 +        # Debug telemetry cadence and output locations.
 +        "VLLM_E2_MEMSTATS",
 +        "VLLM_E2_MEMSTATS_DIR",
@@ -50979,7 +50985,7 @@ index 97a59bd273..a9dc8024fc 100644
          # Trigger cudagraph dispatching keys initialization after
          # resolved cudagraph mode.
 diff --git a/vllm/v1/worker/gpu_worker.py b/vllm/v1/worker/gpu_worker.py
-index 2a3531b61b..8cb9d18d2e 100644
+index 2a3531b61b..dd94312840 100644
 --- a/vllm/v1/worker/gpu_worker.py
 +++ b/vllm/v1/worker/gpu_worker.py
 @@ -87,7 +87,10 @@ from vllm.v1.outputs import (
@@ -51165,7 +51171,30 @@ index 2a3531b61b..8cb9d18d2e 100644
      @property
      def sleep_mode_backend(self) -> "SleepModeBackend":
          if self._sleep_mode_backend is None:
-@@ -506,6 +667,19 @@ class Worker(WorkerBase):
+@@ -244,6 +405,14 @@ class Worker(WorkerBase):
+ 
+     def sleep(self, level: int = 1) -> None:
+         torch.accelerator.synchronize()
++        # Guard reader: one settled read of the counters (the device is
++        # synchronised), then no reader CUDA call until wake_up(), whatever the
++        # idle switch says. A timeout is NOT quiescence: refuse to sleep.
++        if not guard_telemetry.suspend_reader(timeout=10.0):
++            raise RuntimeError(
++                "guard telemetry reader did not suspend within 10 s; refusing to "
++                "sleep while it may still read device memory"
++            )
+         free_bytes_before_sleep = torch.accelerator.get_memory_info()[0]
+ 
+         # Save the buffers before level 2 sleep
+@@ -302,6 +471,7 @@ class Worker(WorkerBase):
+             self._sleep_saved_draft_buffers = {}
+ 
+         self.synchronize_device()
++        guard_telemetry.resume_reader()
+ 
+     def checkpoint_prepare(self) -> None:
+         checkpoint_prepare_distributed_state()
+@@ -506,6 +676,19 @@ class Worker(WorkerBase):
          ):
              self.model_runner.load_model(load_dummy_weights=load_dummy_weights)
  
@@ -51185,7 +51214,7 @@ index 2a3531b61b..8cb9d18d2e 100644
          if has_ec_transfer():
              get_ec_transfer().start_worker_services()
  
-@@ -521,6 +695,10 @@ class Worker(WorkerBase):
+@@ -521,6 +704,10 @@ class Worker(WorkerBase):
          self.model_runner.update_config(overrides)
  
      def reload_weights(self, *args, **kwargs) -> None:
@@ -51196,7 +51225,7 @@ index 2a3531b61b..8cb9d18d2e 100644
          with set_current_vllm_config(self.vllm_config):
              self.model_runner.reload_weights(*args, **kwargs)
  
-@@ -758,6 +936,12 @@ class Worker(WorkerBase):
+@@ -758,6 +945,12 @@ class Worker(WorkerBase):
              ),
          )
  
@@ -51209,7 +51238,7 @@ index 2a3531b61b..8cb9d18d2e 100644
          if self.model_config.enable_return_routed_experts:
              self.model_runner.init_routed_experts_capturer()
  
-@@ -815,6 +999,13 @@ class Worker(WorkerBase):
+@@ -815,6 +1008,13 @@ class Worker(WorkerBase):
              with self._get_cudagraph_capture_context():
                  cuda_graph_memory_bytes = self.model_runner.capture_model()
  
@@ -51223,7 +51252,7 @@ index 2a3531b61b..8cb9d18d2e 100644
          # Compare actual vs estimated CUDA graph memory (if we did profiling)
          if (
              hasattr(self, "cudagraph_memory_estimate")
-@@ -943,10 +1134,21 @@ class Worker(WorkerBase):
+@@ -943,10 +1143,29 @@ class Worker(WorkerBase):
          # gate so subsequent `execute_model` / `sample_tokens` calls enforce it.
          enable_gpu_sync_check()
  
@@ -51232,7 +51261,15 @@ index 2a3531b61b..8cb9d18d2e 100644
 +        # them must not exist during capture -- a .tolist() from a second
 +        # thread while a capture is active is what cudaStreamCaptureModeGlobal
 +        # rejects. Nothing is read before this line; the kernels still count.
++        # Idle quiesce: the entry points below are wrapped in engine_call, so
++        # the reader parks (no device work, cards reach P8) once the engine is
++        # idle and a final drain has read everything. Every guarded kernel
++        # launches on this thread's current stream; that is the fence stream.
++        # Armed after start_reader(), which runs the post-capture hooks first.
 +        guard_telemetry.start_reader()
++        guard_telemetry.enable_idle_gate(
++            self.device, [torch.cuda.current_stream(self.device)]
++        )
 +
          # Startup is done; steady-state serving gets no benefit from torch
          # intra-op parallelism.
@@ -51245,15 +51282,24 @@ index 2a3531b61b..8cb9d18d2e 100644
          return CompilationTimes(
              language_model=self.compilation_config.compilation_time,
              encoder=self.compilation_config.encoder_compilation_time,
-@@ -1144,6 +1346,7 @@ class Worker(WorkerBase):
+@@ -1137,6 +1356,7 @@ class Worker(WorkerBase):
+             )
+         return self.profiler.annotate_context_manager(annotation)
+ 
++    @guard_telemetry.engine_call
+     @torch.inference_mode()
+     @with_gpu_sync_check
+     def sample_tokens(
+@@ -1144,6 +1364,8 @@ class Worker(WorkerBase):
      ) -> ModelRunnerOutput | AsyncModelRunnerOutput:
          return self.model_runner.sample_tokens(grammar_output)
  
++    @guard_telemetry.engine_call
 +    @fail_ple_execute_model
      @torch.inference_mode()
      @with_gpu_sync_check
      def execute_model(
-@@ -1242,8 +1445,8 @@ class Worker(WorkerBase):
+@@ -1242,8 +1464,8 @@ class Worker(WorkerBase):
              return self.model_runner.pool()  # type: ignore
          return None
  
@@ -51264,7 +51310,15 @@ index 2a3531b61b..8cb9d18d2e 100644
  
      def profile(self, is_start: bool = True, profile_prefix: str | None = None):
          # Check if profiling is enabled
-@@ -1479,8 +1682,18 @@ class Worker(WorkerBase):
+@@ -1314,6 +1536,7 @@ class Worker(WorkerBase):
+                     # Recreate it so the next profile_prefix is honored.
+                     self.profiler = None
+ 
++    @guard_telemetry.engine_call
+     def execute_dummy_batch(self) -> None:
+         num_tokens = getattr(self.model_runner, "uniform_decode_query_len", 1)
+         self.model_runner._dummy_run(num_tokens, uniform_decode=True)
+@@ -1479,8 +1702,22 @@ class Worker(WorkerBase):
              self.model_runner.reset_lora_state()
  
      def shutdown(self) -> None:
@@ -51274,16 +51328,20 @@ index 2a3531b61b..8cb9d18d2e 100644
 +        # Bounds-guard instrumentation: synchronous final read of the guard counters, so
 +        # a hit on the LAST step (never polled by check_pending, possibly
 +        # ahead of the reader's next tick) is reported before teardown. Logs
-+        # "FINAL DRAIN"; never raises here -- shutdown must complete.
++        # "FINAL DRAIN"; never raises here -- shutdown must complete. The
++        # reader is stopped and joined first: drain() shares its mirrors.
 +        try:
-+            guard_telemetry.drain()
++            if not guard_telemetry.stop_reader():
++                logger.error("guard telemetry reader did not stop; draining anyway")
++            # serialised with the reader by its I/O lock; bounded wait for it
++            guard_telemetry.drain(timeout=10.0)
 +        except Exception:  # noqa: BLE001
 +            logger.exception("guard telemetry FINAL DRAIN failed")
 +
          # has_kv_transfer_group can be None during interpreter shutdown.
          if ensure_kv_transfer_shutdown is not None:
              ensure_kv_transfer_shutdown()
-@@ -1494,6 +1707,10 @@ class Worker(WorkerBase):
+@@ -1494,6 +1731,10 @@ class Worker(WorkerBase):
  
          self.elastic_ep_executor.shutdown()
  
@@ -51296,10 +51354,10 @@ index 2a3531b61b..8cb9d18d2e 100644
          if model_runner := getattr(self, "model_runner", None):
 diff --git a/vllm/v1/worker/guard_telemetry.py b/vllm/v1/worker/guard_telemetry.py
 new file mode 100644
-index 0000000000..19cf966ac4
+index 0000000000..ebd2609f96
 --- /dev/null
 +++ b/vllm/v1/worker/guard_telemetry.py
-@@ -0,0 +1,796 @@
+@@ -0,0 +1,1551 @@
 +# SPDX-License-Identifier: Apache-2.0
 +# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 +"""Persistent, cudagraph-safe counters for the bounds-guard instrumentation series.
@@ -51360,8 +51418,52 @@ index 0000000000..19cf966ac4
 +check_pending, so MODE=raise degrades to MODE=warn and _ALWAYS_FATAL_SITES
 +never stops anything. The guards themselves still mask and count on both. Any
 +release note for this series has to say so.
++
++IDLE QUIESCE (VLLM_E2_GUARD_IDLE, default 1). A reader that copies every
++_INTERVAL forever keeps every idle GPU out of its idle P-state (P2 at boost
++clocks instead of P8: ~364 W across 4x RTX 3090, issue #2). So the worker wraps
++its GPU entry points (execute_model, sample_tokens, execute_dummy_batch) in
++engine_call, which keeps a call generation and an open-call count, and the
++reader runs a completion-driven state machine instead of a timer:
++
++  ACTIVE   poll on the cadence, exactly as before. Detection is
++           CADENCE-BOUND, not one step: the copy that sees a new count is
++           issued on the tick after the hit and consumed on the tick after
++           that (~1-2 intervals, 50-100 ms at the default), where a fatal
++           site's count is armed; the WARNING with the maxima follows one
++           interval later (~2-3 intervals); the raise lands at the next
++           execute_model, and under async scheduling several steps run in
++           that window;
++  FENCE    no engine call open and none started for a full interval: record a
++           CUDA event on every stream the guarded kernels run on (the engine
++           thread's stream, enable_idle_gate) -- from the reader, so the engine
++           thread gains no CUDA call -- and keep polling until it completes;
++  DRAIN    the fence completed, so every guarded write of every call so far
++           (forward, MTP proposal, RecoverSSM commit graph, async-scheduled
++           steps, PP stages) has finished: issue one fresh copy, report it
++           directly (it is coherent, no producer is running), fold in any
++           half-confirmed increase, leave nothing in flight;
++  PARKED   wait on a condition variable, no CUDA call of any kind, until the
++           next engine_call enter (which notifies), suspend_reader() or
++           stop_reader().
++
++SINGLE-STREAM INVARIANT: every guarded kernel runs on the engine thread's
++fenced stream (eager launches, and graph replays issued by engine calls).
++Every engine call and every eager guarded launch checks it; a violation falls
++back to polling forever with an ERROR line, never to a silent miss. Sleep:
++Worker.sleep suspends the reader (one settled read, then no CUDA call until
++wake_up resumes it), whatever the idle switch says.
++
++A call that starts at any point before the park decision (which re-checks the
++generation under the same lock the enter takes) aborts the quiesce. A hit from
++before the idle period is therefore reported and, for a fatal site, ARMED before
++the reader parks, so the first resumed step's check_pending raises on it.
++The gate is opt-in per process (enable_idle_gate) and fails safe: without it,
++with VLLM_E2_GUARD_IDLE=0, or after a violation of the single-stream invariant
++(a producer this protocol does not cover), the reader polls forever as before.
 +"""
 +
++import functools
 +import math
 +import os
 +import threading
@@ -51552,6 +51654,55 @@ index 0000000000..19cf966ac4
 +
 +_INTERVAL = _parse_interval(os.environ.get("VLLM_E2_GUARD_INTERVAL", "0.05"))
 +
++
++def _parse_idle(text: str | None) -> bool:
++    """VLLM_E2_GUARD_IDLE: unset, empty or "1" = idle quiesce on (default);
++    "0" = poll forever (the pre-0012 reader). Anything else is a ValueError at
++    import: a set-but-broken switch must not silently pick a behaviour."""
++    value = "1" if text is None else text.strip()
++    if value in ("", "1"):
++        return True
++    if value == "0":
++        return False
++    raise ValueError(f"VLLM_E2_GUARD_IDLE must be 0 or 1, got {text!r}")
++
++
++_IDLE_GATE = _parse_idle(os.environ.get("VLLM_E2_GUARD_IDLE"))
++# Longest the final drain waits (event.query polling, never a blocking driver
++# wait) for a copy once the fence says the producers are done. A copy that does
++# not land in this time means the device is not idle after all: stay ACTIVE.
++_DRAIN_TIMEOUT_S = 2.0
++
++# Engine-call activity. Written by engine_call under _cv; the reader samples it
++# under _cv and decides to park under _cv, so an enter either invalidates the
++# park decision or sees _reader_parked and wakes the waiter.
++_cv = threading.Condition(threading.Lock())
++_call_seq = 0  # bumped on every engine_call enter and exit
++_calls_open = 0
++_gate_armed = False  # enable_idle_gate() ran in this process
++_gate_broken: str | None = None  # why the gate fell back to polling forever
++_fence_events: dict[torch.device, list] = {}  # device -> [(stream, event)]
++_reader_parked = False
++_reader_thread: threading.Thread | None = None
++_reader_stop = threading.Event()
++_engine_thread: int | None = None  # threading.get_ident() of the arming thread
++_engine_device: torch.device | None = None
++_fence_keys: dict[torch.device, frozenset] = {}  # device -> fence stream identities
++_suspend_req = False  # suspend_reader() asked; resume_reader() clears it
++_suspend_gen = 0  # bumped by every suspend_reader() request
++_suspended_gen = 0  # the request the reader last acknowledged
++_reader_suspended = False  # the reader acknowledged and makes no CUDA call
++_asleep = False  # suspended for Worker.sleep: drain() must not read the device
++_gate_gen = 0  # bumped by every arm and lifecycle reset
++# Serialises start_reader / enable_idle_gate / stop_reader (never taken by the
++# reader thread or on the step path).
++_life_lock = threading.RLock()
++# Serialises every counter read (cadence poll, idle drain, drain(), reset_for_test):
++# they share the pinned mirrors, events, _seen and _confirm_pending.
++_io_lock = threading.Lock()
++# Observability and tests: reader-issued CUDA operations and transitions.
++_stats = {"polls": 0, "fences": 0, "drains": 0, "parks": 0, "resumes": 0}
++
 +_buffers: dict[torch.device, torch.Tensor] = {}
 +# Devices the reader has given up on. They stay in _buffers: see _reader.
 +_read_disabled: set[torch.device] = set()
@@ -51675,6 +51826,43 @@ index 0000000000..19cf966ac4
 +        job[3] = False
 +        return host.tolist()
 +
++    def read_settled(self, key: object, timeout: float, cancel=None) -> list | None:
++        """Final read for the idle drain, called only once a fence has shown
++        that every producer of this buffer is complete. Waits for any copy
++        still in flight and DISCARDS it (the counters are monotone, so the
++        fresh copy carries everything it did), issues one fresh copy, waits for
++        it and returns its rows, leaving nothing in flight. Waiting is
++        event.query() polling on the reader thread, never a blocking driver
++        wait (see the class docstring). None = a copy did not complete within
++        ``timeout``, or ``cancel()`` turned true while waiting (a call resumed,
++        a stop or suspend was asked); the copy is left in flight, exactly as
++        the cadence path expects it, and the caller goes back to the
++        non-blocking cadence."""
++        job = self._jobs[key]
++        tensor, host, event, inflight = job
++        if host is None:  # CPU tensor: nothing can be in flight
++            return tensor.tolist()
++        deadline = time.monotonic() + timeout
++
++        def landed() -> bool:
++            while not event.query():
++                if time.monotonic() >= deadline or (cancel is not None and cancel()):
++                    return False
++                time.sleep(0.0005)
++            return True
++
++        if inflight and not landed():
++            return None
++        stream = self._streams[tensor.device]
++        with torch.cuda.device(tensor.device), torch.cuda.stream(stream):
++            host.copy_(tensor, non_blocking=True)
++            event.record(stream)
++        job[3] = True
++        if not landed():
++            return None
++        job[3] = False
++        return host.tolist()
++
 +    def reset(self) -> None:
 +        """Test helper: drop in-flight copies so a zeroed counter is not
 +        reported from a stale mirror."""
@@ -51712,11 +51900,14 @@ index 0000000000..19cf966ac4
 +#     What you get is ONE RuntimeError on the firing rank plus a multi-rank
 +#     watchdog timeout, and the evidence is the WARNING in the firing rank's
 +#     log -- find that log first, not the watchdog traceback.
-+#  3. IT IS LATE BY UP TO VLLM_E2_GUARD_INTERVAL. The reader polls; the raise
-+#     lands on a later step. For a durable-damage site that window is how much
++#  3. IT IS LATE: CADENCE-BOUND, NOT ONE STEP. The reader polls; the count is
++#     armed when the first copy that sees it is consumed (~1-2 intervals after
++#     the hit), and the raise lands at the next execute_model after that, so
++#     several steps can run first. For a durable-damage site that window is how much
 +#     corrupted state gets written after the first hit, so a boot with such a
 +#     site armed should keep VLLM_E2_GUARD_INTERVAL at 0.05 (the default), not raise
-+#     it. The cost is 20 host-side reads a second off the engine thread.
++#     it. The cost is 20 host-side reads a second off the engine thread while
++#     engine calls are in flight, and none while idle (IDLE QUIESCE above).
 +_ALWAYS_FATAL_SITES: set[int] = set()
 +
 +# A clamped rope position is not a locally wrong answer that the next step
@@ -51769,6 +51960,33 @@ index 0000000000..19cf966ac4
 +                # host copy on a side stream (registered by prealloc() before
 +                # capture, or lazily by the reader thread -- never here, where
 +                # a capture may be in progress).
++    with _cv:
++        snap = (
++            (_gate_gen, _calls_open, _engine_thread)
++            if _gate_armed and _gate_broken is None
++            else None
++        )
++    if snap is not None:
++        # SINGLE-STREAM INVARIANT (enable_idle_gate): an eager guarded launch
++        # with no engine call open, from a thread other than the engine thread,
++        # or on a stream the fence does not cover is a producer the idle
++        # quiesce cannot see complete -> poll forever, loudly. Cost per eager
++        # launch: one uncontended lock round trip, a few int reads and one
++        # host-side stream lookup. Graph replays do not come through here;
++        # _call_enter checks the stream they inherit.
++        gen, calls_open, owner = snap
++        if calls_open == 0 or threading.get_ident() != owner:
++            _break_gate(
++                f"guarded launch at {SITE_NAMES.get(site, site)} outside an "
++                f"engine call or off the engine thread",
++                gen,
++            )
++        elif _off_fence_stream(device):
++            _break_gate(
++                f"guarded launch at {SITE_NAMES.get(site, site)} on {device} on a "
++                f"stream the fence does not cover",
++                gen,
++            )
 +    return buf[site]
 +
 +
@@ -51830,12 +52048,31 @@ index 0000000000..19cf966ac4
 +
 +    Between prealloc() and this call the kernels still count; nothing reads.
 +    """
-+    global _reader_started
++    global _reader_started, _reader_thread
 +    run_post_capture_hooks()
-+    if _reader_started or _MODE == "off":
++    if _MODE == "off":
 +        return
-+    _reader_started = True
-+    threading.Thread(target=_reader, name="bounds-guard-reader", daemon=True).start()
++    with _life_lock:
++        if _reader_started:
++            t = _reader_thread
++            if t is not None and t.is_alive():
++                if _reader_stop.is_set():
++                    # stop_reader() timed out on an earlier worker in this
++                    # process and its thread is still winding down: never run
++                    # two readers.
++                    logger.error(
++                        "bounds-guard reader NOT started: a stopped reader from an "
++                        "earlier worker in this process is still running; guard "
++                        "telemetry for this worker is not read."
++                    )
++                return
++            # A reader whose stop timed out has exited since: reap it.
++            _reset_lifecycle()
++        _reader_started = True
++        _reader_thread = threading.Thread(
++            target=_reader, name="bounds-guard-reader", daemon=True
++        )
++        _reader_thread.start()
 +    logger.info(
 +        "bounds-guard reader started (mode=%s, interval=%.3gs).",
 +        _MODE,
@@ -51843,13 +52080,409 @@ index 0000000000..19cf966ac4
 +    )
 +
 +
-+def _reader() -> None:
-+    """Off-engine-thread cadence reader; drain() is the only other counter read."""
-+    while True:
++def _stream_key(stream) -> tuple:
++    return (stream.stream_id, stream.device_index, stream.device_type)
++
++
++def _current_stream_key(device: torch.device) -> tuple:
++    """Identity of the calling thread's current stream on ``device``. Host-side
++    only, no device work: the C++ binding returns the triple without building a
++    Python Stream (torch.cuda.current_stream does build one)."""
++    try:
++        return tuple(torch._C._cuda_getCurrentStream(device.index))
++    except AttributeError:
++        return _stream_key(torch.cuda.current_stream(device))
++
++
++def _off_fence_stream(device: torch.device) -> bool:
++    """True when the calling thread's current stream on ``device`` is not a
++    fence stream. False when there is nothing to compare (CPU device, gate not
++    armed on this device). Never raises: an error counts as off-stream."""
++    keys = _fence_keys.get(device)
++    if not keys:
++        return False
++    try:
++        return _current_stream_key(device) not in keys
++    except Exception:  # noqa: BLE001
++        return True
++
++
++def enable_idle_gate(device: torch.device, streams) -> bool:
++    """Arm the idle quiesce for this process (see IDLE QUIESCE).
++
++    The worker calls this on its engine thread, after capture and AFTER
++    start_reader() (which runs the post-capture hooks first; the reader polls
++    on the cadence until the gate is armed), and only once its GPU entry points
++    are wrapped in engine_call. ``streams`` must be every stream the guarded
++    kernels launch on: for the V1 and V2 runners that is the engine thread's
++    current stream (the forward and its graph replays, the MTP proposal and its
++    graphs, the RecoverSSM commit chain and the replay of its commit graph, the
++    block-table / slot-mapping / KV-zero / mamba-copy kernels; the runners' side
++    streams only copy). SINGLE-STREAM INVARIANT, enforced at run time: every
++    engine call and every eager guarded launch (counter()) checks that it runs
++    on the engine thread and on a fence stream, else the gate falls back to
++    polling forever with an ERROR line -- never a silent miss. Graph replays do
++    not pass through counter(); they inherit the stream of the engine call that
++    replays them, which the call check covers. One fence event per stream is
++    created here, outside any capture, and only ever re-recorded by the reader.
++    Returns whether the gate is armed.
++    """
++    global _gate_armed, _engine_thread, _engine_device, _gate_gen
++    if _MODE == "off" or not _IDLE_GATE:
++        return False
++    device = _normalize(device)
++    pairs: list = []
++    if device.type == "cuda":
++        if torch.cuda.is_current_stream_capturing():
++            raise RuntimeError(
++                "guard_telemetry.enable_idle_gate() called during cudagraph capture"
++            )
++        with torch.cuda.device(device):
++            pairs = [(s, torch.cuda.Event()) for s in streams]
++        if not pairs:
++            raise ValueError("enable_idle_gate needs at least one CUDA stream")
++    with _life_lock, _cv:
++        _gate_gen += 1
++        _fence_events[device] = pairs
++        _fence_keys[device] = frozenset(_stream_key(s) for s, _ in pairs)
++        _engine_thread = threading.get_ident()
++        _engine_device = device
++        _gate_armed = True
++    logger.info(
++        "bounds-guard reader: idle quiesce armed on %s (%d fence stream(s)); the "
++        "reader parks with no device work after a final drain once the engine "
++        "is idle (VLLM_E2_GUARD_IDLE=0 polls forever).",
++        device,
++        len(pairs),
++    )
++    return True
++
++
++def engine_call(fn):
++    """Decorator for the worker's GPU entry points: marks an engine call open
++    for the idle quiesce. Engine-thread cost per call: two uncontended lock
++    round trips, two integer updates and one host-side current-stream lookup --
++    no device work, no sync. Applied unconditionally; it only matters once
++    enable_idle_gate() has run."""
++
++    @functools.wraps(fn)
++    def wrapper(*args, **kwargs):
++        _call_enter()
 +        try:
-+            time.sleep(_INTERVAL)
-+            _poll_once()
++            return fn(*args, **kwargs)
++        finally:
++            _call_exit()
++
++    return wrapper
++
++
++def _call_enter() -> None:
++    """Never raises (the wrapper's exit must always run)."""
++    global _call_seq, _calls_open, _reader_parked
++    with _cv:
++        _calls_open += 1
++        _call_seq += 1
++        if _reader_parked:
++            _reader_parked = False
++            _cv.notify_all()
++        snap = (
++            (_gate_gen, _engine_thread, _engine_device)
++            if _gate_armed and _gate_broken is None
++            else None
++        )
++    if snap is not None:
++        gen, owner, device = snap
++        if threading.get_ident() != owner:
++            _break_gate("engine call entered on a thread other than the arming one", gen)
++        elif device is not None and _off_fence_stream(device):
++            _break_gate("engine call runs on a stream the fence does not cover", gen)
++
++
++def _call_exit() -> None:
++    global _call_seq, _calls_open
++    with _cv:
++        _calls_open -= 1
++        _call_seq += 1
++
++
++def _gate_live() -> bool:
++    return _gate_armed and _gate_broken is None
++
++
++def _break_gate(reason: str, gen: int | None = None) -> None:
++    """Fall back to polling forever (the pre-0012 reader). Loud: a protocol
++    violation must never turn into a silent miss. One device per worker process,
++    so this is that device's gate. ``gen``: the gate generation the violation
++    was observed under; a gate re-armed since is left alone."""
++    global _gate_broken
++    with _cv:
++        if _gate_broken is not None or (gen is not None and gen != _gate_gen):
++            return
++        _gate_broken = reason
++        _cv.notify_all()
++    logger.error(
++        "bounds-guard reader: idle quiesce DISABLED for this process (%s); "
++        "the reader polls every %.3gs from now on, idle or not (no hit is "
++        "missed; idle cards stay out of their idle P-state).",
++        reason,
++        _INTERVAL,
++    )
++
++
++def _record_fence() -> list | None:
++    """Reader thread: one event on every fence stream of every device. The
++    engine thread's streams accept the record from this thread; work enqueued
++    before it is covered, and a call that enqueues after it bumps _call_seq
++    first, which discards the fence. A failed record falls back to polling
++    forever (power, not the rank, pays for it)."""
++    for device in list(_buffers):
++        if device.type == "cuda" and device not in _fence_events:
++            _break_gate(f"counter buffer on {device} has no fence stream")
++            return None
++    events = []
++    for device, pairs in list(_fence_events.items()):
++        try:
++            for stream, event in pairs:
++                with torch.cuda.device(device):
++                    event.record(stream)
++                events.append(event)
++        except Exception:  # noqa: BLE001
++            logger.exception("bounds-guard reader: fence record failed on %s", device)
++            _break_gate(f"fence record failed on {device}")
++            return None
++    _stats["fences"] += 1
++    return events
++
++
++def _final_drain(fence_seq: int) -> bool:
++    """The fence completed: read every counter once, coherently, and report.
++    False = no park: a call started meanwhile (its kernels may run beside the
++    copy, so those rows go through the ordinary confirm protocol, or the wait
++    is cancelled with the copy left in flight for the cadence path), a stop or
++    suspend was requested, or a copy did not land in time."""
++    _stats["drains"] += 1
++
++    def cancelled() -> bool:
++        # Plain reads, a hint only: the authoritative check is under _cv below.
++        return (
++            _reader_stop.is_set()
++            or _suspend_req
++            or _call_seq != fence_seq
++            or _calls_open != 0
++        )
++
++    for device, buf in list(_buffers.items()):
++        if device in _read_disabled:
++            continue
++        try:
++            if not _nb_reader.registered(device):
++                _nb_reader.register(device, buf)  # reader thread: never capturing
++            rows = _nb_reader.read_settled(device, _DRAIN_TIMEOUT_S, cancelled)
++        except Exception:  # noqa: BLE001 -- same contract as _poll_once
++            _lose_device(device)
++            continue
++        if rows is None:
++            if not cancelled():
++                logger.warning(
++                    "bounds-guard reader: final drain copy on %s did not complete "
++                    "in %.1fs; staying active",
++                    device,
++                    _DRAIN_TIMEOUT_S,
++                )
++            return False
++        with _cv:
++            quiet = _call_seq == fence_seq and not _calls_open
++        if not quiet:
++            # A call entered before the copy landed: not a coherent snapshot.
++            _consume(device, rows)
++            return False
++        # No call entered before the copy landed, so no producer ran beside
++        # it: a coherent snapshot that needs no confirming copy. A
++        # half-confirmed increase from the cadence path is folded in (counts
++        # are monotone; the fresh maxima are at least as new).
++        pend = _confirm_pending.pop(device, None)
++        if pend is not None:
++            rows = [[max(a[0], b[0]), b[1], b[2]] for a, b in zip(pend, rows)]
++        _report_rows(device, rows)
++    return True
++
++
++_park_logged = False
++
++
++def _park(fence_seq: int) -> bool:
++    """Wait with no CUDA call until an engine call starts (or a stop or suspend
++    request). False, without waiting, when a call started since the fence."""
++    global _reader_parked, _park_logged
++    with _cv:
++        if (
++            _call_seq != fence_seq
++            or _calls_open
++            or not _gate_live()
++            or _reader_stop.is_set()
++            or _suspend_req
++        ):
++            return False
++        _reader_parked = True
++        _stats["parks"] += 1
++        t0 = time.monotonic()
++        first = not _park_logged
++        _park_logged = True
++        try:
++            while (
++                _call_seq == fence_seq
++                and _gate_broken is None
++                and not _reader_stop.is_set()
++                and not _suspend_req
++            ):
++                if first:
++                    # Log once, outside the lock: an enter is never held up by
++                    # logging I/O. A call that starts meanwhile is seen below.
++                    first = False
++                    _cv.release()
++                    try:
++                        logger.info(
++                            "bounds-guard reader: engine idle; final drain read "
++                            "every counter after the last call's GPU work "
++                            "completed; parked with no device work until the "
++                            "next engine call (logged once; resumes after >= 5 s "
++                            "parked are logged)."
++                        )
++                    finally:
++                        _cv.acquire()
++                    continue
++                _cv.wait()
++        finally:
++            _reader_parked = False
++        _stats["resumes"] += 1
++    parked = time.monotonic() - t0
++    if parked >= 5.0 and not _reader_stop.is_set():
++        logger.info(
++            "bounds-guard reader resumed after %.1fs parked (parks %d, drains %d)",
++            parked,
++            _stats["parks"],
++            _stats["drains"],
++        )
++    return True
++
++
++def _suspend_point(gen: int) -> None:
++    """Reader thread: honour suspend_reader() request ``gen``. The caller
++    (Worker.sleep) has synchronised the device and no engine call runs, so one
++    settled read per device is coherent: report it, acknowledge, then wait with
++    no CUDA call until resume_reader(), a newer request, or stop_reader(). Never
++    acknowledges with a copy still in flight: a cancelled or racing read (the
++    sleeper gave up, a call started) returns without acknowledging."""
++    global _asleep, _suspended_gen
++
++    def cancelled() -> bool:
++        return _reader_stop.is_set() or not _suspend_req or _suspend_gen != gen
++
++    with _cv:
++        seq0 = _call_seq
++    with _io_lock:
++        for device, buf in list(_buffers.items()):
++            if device in _read_disabled:
++                continue
++            try:
++                if not _nb_reader.registered(device):
++                    _nb_reader.register(device, buf)
++                # No deadline of its own: the sleeper's timeout cancels it.
++                rows = _nb_reader.read_settled(device, float("inf"), cancelled)
++            except Exception:  # noqa: BLE001
++                _lose_device(device)
++                continue
++            if rows is None:
++                return  # cancelled; the copy stays in flight for the cadence path
++            with _cv:
++                coherent = (
++                    _suspend_req
++                    and _suspend_gen == gen
++                    and _call_seq == seq0
++                    and not _calls_open
++                )
++            if not coherent:
++                _consume(device, rows)
++                return
++            pend = _confirm_pending.pop(device, None)
++            if pend is not None:
++                rows = [[max(a[0], b[0]), b[1], b[2]] for a, b in zip(pend, rows)]
++            _report_rows(device, rows)
++        # The barrier goes up while _io_lock is still held: drain() checks
++        # _asleep under the same lock, so no read can slip in between.
++        with _cv:
++            if cancelled():
++                return
++            _asleep = True
++            _suspended_gen = gen
++            _cv.notify_all()
++    _sleep_while_asleep()
++
++
++def _sleep_while_asleep() -> None:
++    """Reader thread: no CUDA call while the worker sleeps (also for a reader
++    started while asleep), until resume_reader() or stop_reader()."""
++    global _reader_suspended
++    with _cv:
++        _reader_suspended = True
++        _cv.notify_all()
++        try:
++            while _asleep and not _reader_stop.is_set():
++                _cv.wait()
++        finally:
++            _reader_suspended = False
++
++
++def _reader() -> None:
++    """Off-engine-thread reader; drain() is the only other counter read.
++
++    ACTIVE -> FENCE -> DRAIN -> PARKED, see IDLE QUIESCE; SUSPENDED while the
++    worker sleeps. Without a live gate it is the pre-0012 cadence reader."""
++    seq_prev = -1
++    fence = None  # (call generation, events)
++    resumed = False
++    while not _reader_stop.is_set():
++        try:
++            # Right after a resume the first copy starts at once (nothing is in
++            # flight after a drain), so resume costs no extra tick.
++            if not resumed and _reader_stop.wait(_INTERVAL):
++                break
++            resumed = False
++            if _asleep:
++                fence, seq_prev = None, -1
++                _sleep_while_asleep()
++                continue
++            if _suspend_req:
++                fence, seq_prev = None, -1
++                _suspend_point(_suspend_gen)
++                continue
++            if not _gate_live():
++                fence = None
++                with _io_lock:
++                    _poll_once()
++                continue
++            with _cv:
++                seq, open_ = _call_seq, _calls_open
++            if fence is not None and (fence[0] != seq or open_):
++                fence = None  # a call started: the fence no longer covers it
++            if fence is not None and all(e.query() for e in fence[1]):
++                fence_seq, fence = fence[0], None
++                seq_prev = -1
++                with _io_lock:
++                    drained = _final_drain(fence_seq)
++                if drained:
++                    resumed = _park(fence_seq)
++                continue
++            with _io_lock:
++                _poll_once()
++            if fence is None and open_ == 0 and seq == seq_prev:
++                events = _record_fence()
++                if events is not None:
++                    fence = (seq, events)
++            seq_prev = seq
 +        except Exception:  # noqa: BLE001 -- the daemon itself must survive
++            fence = None
++            seq_prev = -1
 +            # A reader that dies is an instrument
 +            # that is not there, and _ALWAYS_FATAL_SITES depends on it. Arm
 +            # the stop so the engine thread learns that the fatal-site
@@ -51860,6 +52493,115 @@ index 0000000000..19cf966ac4
 +                "(_ALWAYS_FATAL_SITES) can no longer be enforced."
 +            )
 +            time.sleep(max(_INTERVAL, 0.05))
++
++
++def wait_idle(timeout: float) -> bool:
++    """Block the CALLER until the reader has parked after a final drain, so
++    every counter write so far has been reported. Never for a step path: the
++    caller must not be inside an engine call. False when the gate is not live
++    (the reader polls forever) or on timeout."""
++    deadline = time.monotonic() + timeout
++    while time.monotonic() < deadline:
++        t = _reader_thread
++        if t is None or not t.is_alive() or not _gate_live():
++            return False
++        with _cv:
++            if _reader_parked and not _calls_open:
++                return True
++        time.sleep(0.005)
++    return False
++
++
++def suspend_reader(timeout: float = 10.0) -> bool:
++    """Lifecycle (Worker.sleep, after it synchronised the device): the reader
++    reads every counter once more, reports, and then makes no CUDA call until
++    resume_reader() -- whatever the idle switch or the gate state, so a sleeping
++    worker never has its counters read. True when already asleep, when no
++    reader runs, or when the reader has acknowledged THIS request with nothing
++    in flight (the barrier _asleep is raised under _io_lock, so drain() cannot
++    read either; a reader started while asleep stays suspended). False on
++    timeout: the request is withdrawn (the reader goes back to work) and the
++    caller must not treat the reader as quiescent (Worker.sleep refuses to
++    sleep)."""
++    global _suspend_req, _suspend_gen, _asleep
++    with _life_lock:  # one suspend at a time, never beside a start/stop/resume
++        if _asleep:
++            return True  # already suspended: nothing new to read
++        t = _reader_thread
++        if t is None or not t.is_alive():
++            with _io_lock, _cv:
++                _asleep = True
++            return True
++        deadline = time.monotonic() + timeout
++        with _cv:
++            _suspend_gen += 1
++            gen = _suspend_gen
++            _suspend_req = True
++            _cv.notify_all()
++            try:
++                while not (_asleep and _suspended_gen == gen):
++                    remaining = deadline - time.monotonic()
++                    if remaining <= 0 or not t.is_alive():
++                        return False
++                    _cv.wait(remaining)
++            finally:
++                _suspend_req = False  # served or withdrawn
++                _cv.notify_all()
++    return True
++
++
++def resume_reader() -> None:
++    """Lifecycle (Worker.wake_up, after the device state is restored)."""
++    global _suspend_req, _asleep
++    with _life_lock, _cv:
++        _suspend_req = False
++        _asleep = False
++        _cv.notify_all()
++
++
++def _reset_lifecycle() -> None:
++    """Under _life_lock, with no reader thread running: back to the state of a
++    fresh import, except the counters, their high-water marks and _asleep."""
++    global _reader_started, _reader_thread, _gate_armed, _gate_broken, _gate_gen
++    global _engine_thread, _engine_device, _suspend_req, _reader_parked
++    global _reader_suspended
++    with _cv:
++        _reader_thread = None
++        _reader_started = False
++        _gate_gen += 1
++        _gate_armed = False
++        _gate_broken = None
++        _engine_thread = None
++        _engine_device = None
++        _suspend_req = False
++        _reader_suspended = False
++        _reader_parked = False
++        _fence_events.clear()
++        _fence_keys.clear()
++        _reader_stop.clear()
++
++
++def stop_reader(timeout: float = 2 * _DRAIN_TIMEOUT_S + 1.0) -> bool:
++    """Stop and join the reader (orderly shutdown, before drain()). Wakes a
++    parked or suspended reader. After a successful join the lifecycle is reset
++    (under the lifecycle lock, so a concurrent start or arm cannot be erased),
++    and a later worker in this process starts a fresh reader and arms its own
++    gate; the counter buffers and high-water marks stay (captured graphs may
++    still hold their addresses, and a reported hit is not reported twice).
++    False, loudly, when the thread did not stop; start_reader() then refuses
++    to run a second one while it lives and reaps it once it has exited."""
++    with _life_lock:
++        _reader_stop.set()
++        with _cv:
++            _cv.notify_all()
++        t = _reader_thread
++        if t is not None:
++            t.join(timeout)
++            if t.is_alive():
++                logger.error("bounds-guard reader did not stop within %.1fs", timeout)
++                return False
++        _reset_lifecycle()
++    return True
 +
 +
 +def _report_rows(device: torch.device, rows: list[list[int]]) -> None:
@@ -51925,60 +52667,95 @@ index 0000000000..19cf966ac4
 +            # previous copy is still in flight (report on a later tick).
 +            if not _nb_reader.registered(device):
 +                _nb_reader.register(device, buf)  # reader thread: never capturing
++            _stats["polls"] += 1
 +            rows = _nb_reader.poll_one(device)
 +            if rows is None:
 +                continue
-+            # Caveat: the side-stream copy is not a coherent snapshot of a
-+            # site's three slots -- the kernels write the count first, then
-+            # the maxima. A copy taken between them pairs a new count with
-+            # stale maxima. So a count increase seen in copy k is REPORTED
-+            # from copy k+1 (one tick later, >= 50 ms after the increment,
-+            # by which time the maxima of that hit are written). The fatal
-+            # decision is count-based either way; only its report waits a tick.
-+            pend = _confirm_pending.get(device)
-+            rising = [
-+                site
-+                for site, (n, _r, _v) in enumerate(rows)
-+                if n > _seen.get((device, site), 0)
-+            ]
-+            if pend is None:
-+                if rising:
-+                    _confirm_pending[device] = rows
-+                continue
-+            _confirm_pending.pop(device, None)
-+            # report with the CONFIRMING copy's values (never lower than the
-+            # pending copy's counts: the counters are monotone)
-+            rows = [[max(a[0], b[0]), b[1], b[2]] for a, b in zip(pend, rows)]
 +        except Exception:  # noqa: BLE001 -- a reader must never kill the run
-+            # Never silent: a reader that cannot read is an instrument that
-+            # is not there, and this whole series depends on it. Log once,
-+            # then stop polling that device.
-+            #
-+            # STOP POLLING IT, NOT STOP HOLDING IT. A prior version
-+            # popped the buffer here, which drops the only durable Python
-+            # reference: counter() hands out transient buf[site] views that
-+            # are released after each launch, and under FULL replay nothing
-+            # holds one at all. The storage would return to the caching
-+            # allocator, be reused, and the CAPTURED atomics would keep
-+            # writing to the baked address -- the memory-corrupting half of
-+            # replay defect, re-entering through the error handler.
-+            logger.exception(
-+                "bounds-guard reader failed to read the counter on %s; "
-+                "no further guard telemetry will be reported for it. The "
-+                "buffer is kept alive: captured graphs still write to it.",
-+                device,
-+            )
-+            _read_disabled.add(device)
-+            # Losing the reader on a device
-+            # silently voids the fatal-site contract for it. Arm the stop
-+            # regardless of MODE (off never reaches here: no reader).
-+            _arm(
-+                f"bounds-guard reader lost the counter on {device}; the "
-+                f"fatal-site contract (_ALWAYS_FATAL_SITES) is no longer "
-+                f"enforced there."
-+            )
++            _lose_device(device)
 +            continue
-+        _report_rows(device, rows)
++        _consume(device, rows)
++
++
++def _consume(device: torch.device, rows: list) -> None:
++    """Cadence path for one copy that may have raced the producers."""
++    # Caveat: the side-stream copy is not a coherent snapshot of a
++    # site's three slots -- the kernels write the count first, then
++    # the maxima. A copy taken between them pairs a new count with
++    # stale maxima. So a count increase seen in copy k is REPORTED
++    # from copy k+1 (one tick later, >= 50 ms after the increment,
++    # by which time the maxima of that hit are written). The fatal
++    # decision is count-based and is ARMED on copy k already.
++    pend = _confirm_pending.get(device)
++    rising = [
++        site
++        for site, (n, _r, _v) in enumerate(rows)
++        if n > _seen.get((device, site), 0)
++    ]
++    if pend is None:
++        if rising:
++            _confirm_pending[device] = rows
++            # The FATAL decision is count-based and does not wait for the
++            # metadata confirmation: arm on this first observation. The
++            # WARNING with the recorded maxima follows on the confirming copy.
++            fatal = [s for s in rising if _MODE == "raise" or s in _ALWAYS_FATAL_SITES]
++            if fatal:
++                # Log the evidence BEFORE arming: the rank may stop before the
++                # confirming copy is read. The maxima follow best effort.
++                msg = (
++                    "bounds guard masked-access count rose at "
++                    + ", ".join(
++                        f"{SITE_NAMES.get(s, s)} (count {rows[s][0]})" for s in fatal
++                    )
++                    + f" on {device} (first observation; fatal by count; the "
++                    "recorded maxima are reported best effort on the confirming "
++                    "copy)."
++                )
++                logger.warning("%s", msg)
++                _arm(msg)
++        return
++    _confirm_pending.pop(device, None)
++    # report with the CONFIRMING copy's values (never lower than the
++    # pending copy's counts: the counters are monotone)
++    rows = [[max(a[0], b[0]), b[1], b[2]] for a, b in zip(pend, rows)]
++    _report_rows(device, rows)
++
++
++def _lose_device(device: torch.device) -> None:
++    """A counter read failed: stop polling the device, keep holding it."""
++    # Never silent: a reader that cannot read is an instrument that
++    # is not there, and this whole series depends on it. Log once,
++    # then stop polling that device.
++    #
++    # STOP POLLING IT, NOT STOP HOLDING IT. A prior version
++    # popped the buffer here, which drops the only durable Python
++    # reference: counter() hands out transient buf[site] views that
++    # are released after each launch, and under FULL replay nothing
++    # holds one at all. The storage would return to the caching
++    # allocator, be reused, and the CAPTURED atomics would keep
++    # writing to the baked address -- the memory-corrupting half of
++    # replay defect, re-entering through the error handler.
++    logger.exception(
++        "bounds-guard reader failed to read the counter on %s; "
++        "no further guard telemetry will be reported for it. The "
++        "buffer is kept alive: captured graphs still write to it.",
++        device,
++    )
++    _read_disabled.add(device)
++    # An increase already seen and waiting for its confirming copy is evidence:
++    # report it from the copy that showed it (count exact, maxima possibly
++    # stale) instead of dropping it with the device.
++    pend = _confirm_pending.pop(device, None)
++    if pend is not None:
++        _report_rows(device, pend)
++    # Losing the reader on a device
++    # silently voids the fatal-site contract for it. Arm the stop
++    # regardless of MODE (off never reaches here: no reader).
++    _arm(
++        f"bounds-guard reader lost the counter on {device}; the "
++        f"fatal-site contract (_ALWAYS_FATAL_SITES) is no longer "
++        f"enforced there."
++    )
 +
 +
 +def _arm(msg: str) -> None:
@@ -51996,9 +52773,10 @@ index 0000000000..19cf966ac4
 +    TWO THINGS IT DOES NOT DO -- an earlier docstring claimed one of them and
 +    was wrong:
 +
-+    1. It does NOT raise on the step that fired. The reader polls on a cadence,
-+       so the raise lands up to VLLM_E2_GUARD_INTERVAL later, hundreds of
-+       decode steps on. The scheduler state at the raise belongs to some later
++    1. It does NOT raise on the step that fired. The reader polls on a cadence:
++       the count is armed ~1-2 VLLM_E2_GUARD_INTERVAL ticks after the hit,
++       and the raise lands at the next execute_model after that -- several
++       decode steps on, more under async scheduling. The scheduler state at the raise belongs to some later
 +       step, not the offending one. Attribution comes from the counter and the
 +       WARNING; the raise is a stop, not a snapshot.
 +    2. It does NOT coordinate across ranks. The counters are per process, so
@@ -52023,7 +52801,9 @@ index 0000000000..19cf966ac4
 +    )
 +
 +
-+def drain(*, raise_on_fatal: bool = False) -> dict[str, list[int]]:
++def drain(
++    *, raise_on_fatal: bool = False, timeout: float | None = None
++) -> dict[str, list[int]]:
 +    """Synchronous final read of every counter, off the cadence (added
 +    later).
 +
@@ -52035,9 +52815,34 @@ index 0000000000..19cf966ac4
 +    snapshot. With raise_on_fatal it raises for a hit at a site in
 +    _ALWAYS_FATAL_SITES or, under MODE=raise, at any site. MODE=off drains
 +    nothing (no reporting under off, by contract).
++
++    It shares the reader's pinned mirrors, events and high-water marks, so stop
++    the reader first (stop_reader(); the worker's shutdown does); every read is
++    also serialised by one lock. ``timeout`` bounds the wait for that lock (a
++    reader stuck in a read): on expiry it logs and drains nothing.
 +    """
 +    if _MODE == "off":
 +        return {}
++    if not _io_lock.acquire(timeout=-1 if timeout is None else timeout):
++        logger.error(
++            "bounds-guard FINAL DRAIN skipped: the reader still holds the counters "
++            "after %.1fs",
++            timeout,
++        )
++        return {}
++    try:
++        if _asleep:
++            logger.error(
++                "bounds-guard FINAL DRAIN skipped: the worker is asleep (its "
++                "counters were read when it went to sleep)"
++            )
++            return {}
++        return _drain_locked(raise_on_fatal)
++    finally:
++        _io_lock.release()
++
++
++def _drain_locked(raise_on_fatal: bool) -> dict[str, list[int]]:
 +    fatal: list[str] = []
 +    for device, buf in list(_buffers.items()):
 +        try:
@@ -52047,7 +52852,9 @@ index 0000000000..19cf966ac4
 +                _nb_reader.register(device, buf)
 +            rows = _nb_reader.read_now(device)  # pinned mirror, side stream only
 +        except Exception:  # noqa: BLE001
-+            logger.exception("bounds-guard FINAL DRAIN could not read %s", device)
++            logger.exception(
++                "bounds-guard FINAL DRAIN INCOMPLETE: could not read %s", device
++            )
 +            fatal.append(f"reader lost {device}")
 +            continue
 +        _report_rows(device, rows)
@@ -52089,6 +52896,12 @@ index 0000000000..19cf966ac4
 +    All three, or the next hit is invisible: the reader only reports a count
 +    ABOVE what it last saw.
 +    """
++    global _pending
++    with _io_lock:
++        _reset_locked()
++
++
++def _reset_locked() -> None:
 +    global _pending
 +    for buf in _buffers.values():
 +        buf.zero_()

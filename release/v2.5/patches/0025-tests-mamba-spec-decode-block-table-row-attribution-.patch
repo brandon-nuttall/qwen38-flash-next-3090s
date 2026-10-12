@@ -1,7 +1,7 @@
 From 9918e5f29e17e77a646ad3db50e515dc9e3c33b5 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:17:29 -0400
-Subject: [PATCH 25/97] tests: mamba spec-decode block-table row attribution
+Subject: [PATCH 25/98] tests: mamba spec-decode block-table row attribution
  (from upstream #55506)
 
 Device tests with a non-identity request-slot permutation, covering the axis the

@@ -1,15 +1,15 @@
-# Flash-Next v2.5.1 in one image: Qwen3.8-Flash-Next-W4A16-Merlin at 262K per request, 924,993-token KV pool,
-# 4x RTX 3090, on vLLM 0.30.0. The image runs scripts/build-v2.5.sh (public v0.30.0 + the v2.5.1 bundle, commit AND tree
-# hash asserted, pinned venv, the two own extensions built for v2.2.0 (unchanged in v2.5.1) from the build-artifacts asset, hash-checked) and starts
+# Flash-Next v2.5.2 in one image: Qwen3.8-Flash-Next-W4A16-Merlin at 262K per request, 924,993-token KV pool,
+# 4x RTX 3090, on vLLM 0.30.0. The image runs scripts/build-v2.5.sh (public v0.30.0 + the v2.5.2 bundle, commit AND tree
+# hash asserted, pinned venv, the two own extensions built for v2.2.0 (unchanged in v2.5.1 and v2.5.2) from the build-artifacts asset, hash-checked) and starts
 # scripts/serve-v2.5.sh through scripts/docker-entrypoint.sh.
 #
-#   docker build -t qwen38-flash-next-3090s:v2.5.1 .
+#   docker build -t qwen38-flash-next-3090s:v2.5.2 .
 #   docker run --gpus all --stop-timeout 70 --shm-size=8g --ulimit memlock=-1 -p 8000:8000 \
 #     -v /path/to/Qwen3.8-Flash-Next-W4A16-Merlin:/models/Qwen3.8-Flash-Next-W4A16-Merlin \
-#     -v flash-next-cache-v2.5:/cache qwen38-flash-next-3090s:v2.5.1
+#     -v flash-next-cache-v2.5:/cache qwen38-flash-next-3090s:v2.5.2
 #
 # The two release assets are fetched at build time (BUNDLE_URL ~0.7 MB, ARTIFACTS_URL ~241 MB), or taken from the build
-# context if you put v2.5.1-from-upstream-v0.30.0.bundle (or the downloaded .bundle.gz) and
+# context if you put v2.5.2-from-upstream-v0.30.0.bundle (or the downloaded .bundle.gz) and
 # build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz next to this Dockerfile. build-v2.5.sh asserts both sha256s from
 # upstream/PIN-v2.5.
 #
@@ -27,7 +27,7 @@
 # host RAM: 96 GB is the qualified allocation; the measured resident floor is ~69 GiB (~48 GiB n-gram table + ~4.2 GiB
 # pinned embeddings + ~16 GiB workers/engine/shared segments), the rest being reclaimable page cache. /dev/shm >= 1 GB (--shm-size).
 FROM python:3.13-slim-bookworm
-ARG BUNDLE_URL=https://github.com/halt95/qwen38-flash-next-3090s/releases/download/v2.5.1/v2.5.1-from-upstream-v0.30.0.bundle.gz
+ARG BUNDLE_URL=https://github.com/halt95/qwen38-flash-next-3090s/releases/download/v2.5.2/v2.5.2-from-upstream-v0.30.0.bundle.gz
 ARG ARTIFACTS_URL=https://github.com/halt95/qwen38-flash-next-3090s/releases/download/v2.2.0/build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz
 ENV DEBIAN_FRONTEND=noninteractive PIP_NO_CACHE_DIR=1
 RUN apt-get update && apt-get install -y --no-install-recommends git curl ca-certificates tar gzip procps \
@@ -37,12 +37,12 @@ WORKDIR /opt/flash-next
 # the repo files build-v2.5.sh / serve-v2.5.sh need (see .dockerignore for what is left out)
 COPY . /opt/flash-next/
 # (a .bundle.gz from the build context is decompressed by build-v2.5.sh)
-RUN if [ ! -f v2.5.1-from-upstream-v0.30.0.bundle ] && [ ! -f v2.5.1-from-upstream-v0.30.0.bundle.gz ]; then \
-      curl -fsSL "$BUNDLE_URL" | gunzip > v2.5.1-from-upstream-v0.30.0.bundle; fi \
+RUN if [ ! -f v2.5.2-from-upstream-v0.30.0.bundle ] && [ ! -f v2.5.2-from-upstream-v0.30.0.bundle.gz ]; then \
+      curl -fsSL "$BUNDLE_URL" | gunzip > v2.5.2-from-upstream-v0.30.0.bundle; fi \
     && if [ ! -f build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz ]; then \
       curl -fsSL -o build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz "$ARTIFACTS_URL"; fi \
     && chmod +x scripts/*.sh scripts/make-e1-config.py \
-    && BUNDLE=/opt/flash-next/v2.5.1-from-upstream-v0.30.0.bundle \
+    && BUNDLE=/opt/flash-next/v2.5.2-from-upstream-v0.30.0.bundle \
        ARTIFACTS=/opt/flash-next/build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz \
        bash scripts/build-v2.5.sh /opt/vllm-v2.5 /opt/venv-v2.5 \
     && rm -f build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz && rm -rf /root/.cache

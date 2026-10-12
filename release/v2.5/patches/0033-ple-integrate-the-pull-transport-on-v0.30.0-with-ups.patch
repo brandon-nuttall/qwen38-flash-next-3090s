@@ -1,7 +1,7 @@
 From a7b7cfc45b153e9d1a5af077c2a0f4edf08aaa09 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 00:15:23 -0400
-Subject: [PATCH 33/97] ple: integrate the pull transport on v0.30.0 with
+Subject: [PATCH 33/98] ple: integrate the pull transport on v0.30.0 with
  upstream UVA refused
 
 - VLLM_E2_PLE_PULL_TRANSPORT replaces the fork's old switch name, which

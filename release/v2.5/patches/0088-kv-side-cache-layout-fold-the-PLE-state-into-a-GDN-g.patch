@@ -1,7 +1,7 @@
 From 096b04c159339f58061e381b418924c8de9bb7c4 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Fri, 2 Oct 2026 09:50:32 -0400
-Subject: [PATCH 88/97] kv: side-cache layout -- fold the PLE state into a GDN
+Subject: [PATCH 88/98] kv: side-cache layout -- fold the PLE state into a GDN
  group, pack QSA rings
 
 The packed pool strides every block by the widest group, and every group draws whole blocks. The PLE short-conv

@@ -1,7 +1,7 @@
 From 3bb9f2aed8bf86eb9d94f71a7334f974f6b8f89c Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 18:59:25 -0400
-Subject: [PATCH 56/97] topk: in-kernel canonical emission
+Subject: [PATCH 56/98] topk: in-kernel canonical emission
  (MERLIN_TOPK_SORTED_EMIT)
 
 Emits the selected indices in canonical ascending order inside the kernel so

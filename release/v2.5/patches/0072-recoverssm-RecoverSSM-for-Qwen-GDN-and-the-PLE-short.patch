@@ -1,7 +1,7 @@
 From 0fefd912b9dd8276191f6baa4a812fd4bf81bb76 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Sun, 27 Sep 2026 00:07:04 +0200
-Subject: [PATCH 72/97] recoverssm: RecoverSSM for Qwen GDN and the PLE short
+Subject: [PATCH 72/98] recoverssm: RecoverSSM for Qwen GDN and the PLE short
  conv (port of upstream #58863, 03cae7837f)
 
 Port of the upstream vLLM change #58863 (Apache-2.0). With --use-replayssm and speculative decoding, Gated DeltaNet layers verify the

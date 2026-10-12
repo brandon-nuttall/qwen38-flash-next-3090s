@@ -1,7 +1,7 @@
 From 24663dc54189aaf13470d257ee7aed5873b1a1f0 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:11:36 -0400
-Subject: [PATCH 04/97] ple_offload: standalone fault-injection singleton used
+Subject: [PATCH 04/98] ple_offload: standalone fault-injection singleton used
  by the offload transport
 
 A stdlib-only, one-shot, rank-selective fault selector shared by the PLE

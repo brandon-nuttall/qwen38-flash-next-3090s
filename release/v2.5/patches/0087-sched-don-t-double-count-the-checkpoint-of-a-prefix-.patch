@@ -1,7 +1,7 @@
 From 2201e51936c20f436851d94bd44a1467e256c279 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Fri, 2 Oct 2026 06:23:33 -0400
-Subject: [PATCH 87/97] sched: don't double-count the checkpoint of a
+Subject: [PATCH 87/98] sched: don't double-count the checkpoint of a
  prefix-hit admission
 
 The admission gate reserved one retained-checkpoint block per Mamba group for every request not holding one. A

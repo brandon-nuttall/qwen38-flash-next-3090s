@@ -1,7 +1,7 @@
 From edd21a1661c6f8d8b0083121df320c207e439826 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 09:11:49 +0800
-Subject: [PATCH 61/97] gdn: fix stateless first-chunk classification (port of
+Subject: [PATCH 61/98] gdn: fix stateless first-chunk classification (port of
  upstream #51565)
 
 Port of the upstream vLLM change #51565 (Apache-2.0). A Gated DeltaNet prefill whose first chunk carries no prior state is

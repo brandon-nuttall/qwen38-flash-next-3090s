@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Container entrypoint for Flash-Next v2.5.1: checks the mounted checkpoint, adds the one config key if it is
+# Container entrypoint for Flash-Next v2.5.2: checks the mounted checkpoint, adds the one config key if it is
 # missing (and the mount is writable), warns when no GPU is visible, then execs scripts/serve-v2.5.sh (which also
 # warns about host RAM and /dev/shm). Extra arguments go to `vllm serve`.
 #
-#   docker run ... qwen38-flash-next-3090s:v2.5.1 [/path/inside/container/to/checkpoint] [extra vllm args]
+#   docker run ... qwen38-flash-next-3090s:v2.5.2 [/path/inside/container/to/checkpoint] [extra vllm args]
 #
 # A first argument that starts with `-` is a vllm argument: the default checkpoint path is used.
 set -euo pipefail

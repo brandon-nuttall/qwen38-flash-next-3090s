@@ -1,7 +1,7 @@
 From 34869cce2ea0dff793a499b83f65239d7e136ec2 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 12:30:20 -0400
-Subject: [PATCH 54/97] ple_offload: the dying-path traceback runs no exception
+Subject: [PATCH 54/98] ple_offload: the dying-path traceback runs no exception
  code
 
 ple_fail_closed formatted its traceback with traceback.format_exception, which

@@ -1,7 +1,7 @@
 From 2f4cbedfe152ef7b27caa867c65eae36cbe06a47 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Thu, 1 Oct 2026 20:14:32 +0200
-Subject: [PATCH 79/97] recoverssm: GDN: commit forward with the verify step's
+Subject: [PATCH 79/98] recoverssm: GDN: commit forward with the verify step's
  own decay, bit-identical to per-token (port of upstream #58863, 514102a1db)
 
 Port of the upstream vLLM change #58863 (Apache-2.0). The verify kernel records the decay it applied and the commit replays the

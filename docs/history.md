@@ -1,9 +1,11 @@
 # Release history
 
-Earlier release notes, moved here from the [README](../README.md). The current release is v2.5.1; its notes are in
-[CHANGELOG.md](../CHANGELOG.md#what-changed-in-v251).
+Earlier release notes, moved here from the [README](../README.md). The current release is v2.5.2; its notes, and v2.5.1's, are in
+[CHANGELOG.md](../CHANGELOG.md#v252).
 
-## The releases in brief (v2.5.1, v2.2.0, v2.0.1, v2)
+## The releases in brief (v2.5.2, v2.5.1, v2.2.0, v2.0.1, v2)
+
+**v2.5.2** (Merlin engine v2.5.2) is v2.5.1 plus one engine commit: the bounds-guard reader parks once the engine drains, so idle cards can drop to P8 with `GUARD=warn` on (`VLLM_E2_GUARD_IDLE=0` keeps the always-polling reader). See [v2.5.2](../CHANGELOG.md#v252).
 
 **v2.5.1** (2026-10-06) makes agent follow-up turns resume from cache: a follow-up resumes on a 64-token grid instead of the 4,096-token block, and the Gated-DeltaNet checkpoint and cached prefix a conversation needs are held until its next turn is admitted. It also increases the KV pool to 924,993 tokens, measures three 262,144-token sessions resident at once, updates combining-mark tokenization, supports prompts with up to 42 images, and aligns unset environment variables with the shipped launcher. Single-stream decode is about 3 % slower than v2.2.0; eight-concurrent-request throughput is effectively unchanged. v2.5.0 was not published. See [What changed in v2.5.1](../CHANGELOG.md#what-changed-in-v251).
 

@@ -1,7 +1,7 @@
 From 82e5e9d8daaec804711037c388a9ba1b03921dfc Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:13:07 -0400
-Subject: [PATCH 10/97] gdn: bound the decode state index
+Subject: [PATCH 10/98] gdn: bound the decode state index
 
 Ports the check from upstream vLLM PR #50021.
 ---

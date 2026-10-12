@@ -1,7 +1,7 @@
 From d57d47d8f8bb6db964c7ecce3fb78c1562881e30 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 10:06:57 -0400
-Subject: [PATCH 52/97] code quality on v0.30.0: row dump removed, lint, knob
+Subject: [PATCH 52/98] code quality on v0.30.0: row dump removed, lint, knob
  read-site census
 
 The debug PLE row dump is deleted; ruff findings on fork lines cleared; a

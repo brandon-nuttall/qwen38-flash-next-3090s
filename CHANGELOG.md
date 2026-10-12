@@ -4,6 +4,37 @@ Release notes, newest first. To install and run the current release, see the [RE
 (scripts, environment variables, capacity, known behaviours, measurement method) is in
 [docs/reference.md](docs/reference.md).
 
+## v2.5.2
+
+Point release, 2026-10-12: **Merlin engine v2.5.2** = the v2.5.1 engine plus one commit, the bounds-guard reader fix.
+New bundle `v2.5.2-from-upstream-v0.30.0.bundle`, patch series 0001..0098 (0098 is the fix), `SHA256SUMS.v2.5.2` and
+`upstream/PIN-v2.5` (commit `de6e2c2fe9`, tree `05e6d1a5…`). The compiled ops are unchanged (the fix is Python only), so
+the v2.2.0 build-artifacts asset is reused again. To run it: [Quick start](README.md#quick-start).
+
+- **Idle cards can drop to P8 with the bounds guards on.** With `GUARD=warn` (the default) the guard reader copied its
+  counters to the host every 50 ms forever, and that copy alone holds an idle RTX 3090 in P2 (about 450 W idle on four
+  cards against about 86 W in P8, as reported in GitHub issue #2; measured on the reference host: 446 W in P2 against
+  110 W in P8). The reader now parks once the engine drains: when no
+  engine call has been open for a full interval it fences the engine stream, waits for the fence, reads every counter
+  one last time (nothing is writing them by then, so the read is complete), reports, and then does no device work at
+  all until the next request arrives.
+- **`GUARD=warn` keeps every bounds check.** A hit from the last step before idle is read and reported, and a fatal
+  site is armed, before the reader parks; while serving, detection stays cadence-bound as before (the reader polls every
+  `VLLM_E2_GUARD_INTERVAL`, 0.05 s). If any engine call or guarded launch runs off the engine thread or on an unfenced
+  stream, the reader stops parking and polls forever, with an ERROR line. Sleep mode suspends the reader (one settled
+  read, then no reads until wake-up).
+- **New switch `VLLM_E2_GUARD_IDLE`** (default `1`; `0` polls forever, the v2.5.1 behaviour). `scripts/serve-v2.5.sh`
+  sets it to 1 unless you set it, keeps an inherited value through its knob reset, and refuses anything but 0 or 1.
+  It is not a compile factor: changing it does not trigger a recompile.
+- **The same engine change as the Qwen3.8-27B releases.** The fix is the guard commit the 27B v1.3.0 and ThinkingCap
+  v1.0.0 releases are built on, applied from the same patch file. Thanks to [CoolShades](https://github.com/CoolShades) for the idle-power report in
+  [issue #2](https://github.com/halt95/qwen38-flash-next-3090s/issues/2) and for [PR #3](https://github.com/halt95/qwen38-flash-next-3090s/pull/3), which proposed pausing the reader after a fixed 2 s of idle; the release parks it once the engine
+  has drained instead, so it can share one implementation with the 27B releases.
+- Nothing else changed: no kernel, scheduler or numerics code. Single-stream decode and cold prefill read as v2.5.1's
+  within run-to-run noise (ladder cell medians within ±1.8 %; median tokens per event match to within 0.01); concurrent
+  load and cache behaviour were not re-measured. Bench card: [`benchmarks/2026-10-12/BENCH-CARD.md`](benchmarks/2026-10-12/BENCH-CARD.md).
+  The v2.5.1 stability results were not re-run (the change is Python only, in the guard reader).
+
 ## v2.5.1
 
 Released 2026-10-06: [v2.5.1 on GitHub](https://github.com/halt95/qwen38-flash-next-3090s/releases/tag/v2.5.1). Bench

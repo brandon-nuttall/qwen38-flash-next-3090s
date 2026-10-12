@@ -1,7 +1,7 @@
 From fc599b2694a95f4d75a16413d1854f9b523eac5c Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:13:08 -0400
-Subject: [PATCH 14/97] worker: pool-bound the KV block zeroer
+Subject: [PATCH 14/98] worker: pool-bound the KV block zeroer
 
 ---
  vllm/v1/worker/utils.py | 26 ++++++++++++++++++++++++++

@@ -1,7 +1,7 @@
 From c57bce3523c7c0ec23b67e23986699be96343131 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 08:31:20 -0400
-Subject: [PATCH 43/97] topk: large-path hardening
+Subject: [PATCH 43/98] topk: large-path hardening
 
 - Inline-PTX acquire/release helpers declare their memory effects.
 - The fault verdict is aggregated across the CTA group before emission, so a

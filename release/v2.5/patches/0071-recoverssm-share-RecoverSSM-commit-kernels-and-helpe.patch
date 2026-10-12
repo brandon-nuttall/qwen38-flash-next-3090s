@@ -1,7 +1,7 @@
 From c0b4f0c20c254b43a5cf33ec432730efc7ebef8a Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Sun, 27 Sep 2026 00:07:04 +0200
-Subject: [PATCH 71/97] recoverssm: share RecoverSSM commit kernels and helpers
+Subject: [PATCH 71/98] recoverssm: share RecoverSSM commit kernels and helpers
  across models (port of upstream #58863, a80e41d690)
 
 Port of the upstream vLLM change #58863 (Apache-2.0). The commit-plan and conv-window compaction kernels move from the Kimi-K3 model

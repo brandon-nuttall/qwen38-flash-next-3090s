@@ -1,7 +1,7 @@
 From 198c261b6c3a07925dd4687cb237f55aa982776b Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Mon, 28 Sep 2026 06:36:58 +0200
-Subject: [PATCH 64/97] mamba: reuse Mamba/GDN metadata across KV cache groups
+Subject: [PATCH 64/98] mamba: reuse Mamba/GDN metadata across KV cache groups
  (port of upstream #58762)
 
 Port of the upstream vLLM change #58762 (Apache-2.0). Mamba/GDN attention metadata is built once and reused by groups that share it.

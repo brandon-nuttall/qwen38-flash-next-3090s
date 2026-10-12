@@ -1,7 +1,7 @@
 From a4ea95dc5bd0d0fc31999b47f862a0fd7fd8e10f Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:13:09 -0400
-Subject: [PATCH 17/97] qsa: bound the RoPE position before it becomes an
+Subject: [PATCH 17/98] qsa: bound the RoPE position before it becomes an
  address
 
 ---

@@ -1,7 +1,7 @@
 From 8b8b2dc2ebd3f9112c70e03afb8a9f5efb847223 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 00:01:58 -0400
-Subject: [PATCH 31/97] ple_offload: carry the host-mapped pull transport onto
+Subject: [PATCH 31/98] ple_offload: carry the host-mapped pull transport onto
  v0.30.0
 
 Restores the fork's PLE offload package (not upstream) and its pull

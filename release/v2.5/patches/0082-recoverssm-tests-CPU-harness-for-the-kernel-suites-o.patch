@@ -1,7 +1,7 @@
 From 863ddee0202d82cb432ef14bf28aaf57b7862f5d Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Thu, 1 Oct 2026 21:27:02 -0400
-Subject: [PATCH 82/97] recoverssm, tests: CPU harness for the kernel suites on
+Subject: [PATCH 82/98] recoverssm, tests: CPU harness for the kernel suites on
  a GPU-less host
 
 tests/merlin_cpu/mk_cpu_tests.sh makes CPU copies of the CUDA-only RecoverSSM kernel tests (device strings and

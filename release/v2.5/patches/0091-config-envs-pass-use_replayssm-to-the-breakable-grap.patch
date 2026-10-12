@@ -1,7 +1,7 @@
 From 18a7052f3228eff3030c2ff6ee676eae80adc513 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Mon, 5 Oct 2026 00:13:13 -0400
-Subject: [PATCH 91/97] config, envs: pass use_replayssm to the breakable-graph
+Subject: [PATCH 91/98] config, envs: pass use_replayssm to the breakable-graph
  fallback; register VLLM_FAIL_ON_PROFILING_KV_LEAK
 
 CompilationConfig.resolve_cudagraph_mode_and_sizes read self.cache_config.use_replayssm, but CompilationConfig has

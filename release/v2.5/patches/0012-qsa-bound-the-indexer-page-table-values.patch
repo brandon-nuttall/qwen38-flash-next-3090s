@@ -1,7 +1,7 @@
 From 3764d5056b53ba0a54cc9a6d82c05166feba5869 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:13:08 -0400
-Subject: [PATCH 12/97] qsa: bound the indexer page-table values
+Subject: [PATCH 12/98] qsa: bound the indexer page-table values
 
 ---
  .../qwen4_exp/nvidia/ops/qsa_indexer.py       | 76 ++++++++++++++++++-

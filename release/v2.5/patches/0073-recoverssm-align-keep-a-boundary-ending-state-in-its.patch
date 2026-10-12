@@ -1,7 +1,7 @@
 From 959d94a7f18ed97b4b2794f359430d6054b88830 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Sun, 27 Sep 2026 11:06:54 +0200
-Subject: [PATCH 73/97] recoverssm: align: keep a boundary-ending state in its
+Subject: [PATCH 73/98] recoverssm: align: keep a boundary-ending state in its
  block (port of upstream #58863, 5567cc1b25)
 
 Port of the upstream vLLM change #58863 (Apache-2.0). A window whose accepted tokens end exactly on a block boundary now commits into

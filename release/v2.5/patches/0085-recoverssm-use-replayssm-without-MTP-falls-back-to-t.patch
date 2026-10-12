@@ -1,7 +1,7 @@
 From 3b6e69b21334569cf17f79ed3b0f44c8dbd942fb Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Sun, 4 Oct 2026 07:33:26 -0400
-Subject: [PATCH 85/97] recoverssm: --use-replayssm without MTP falls back to
+Subject: [PATCH 85/98] recoverssm: --use-replayssm without MTP falls back to
  the stock GDN path
 
 On Qwen4Exp the flag selects RecoverSSM, which needs speculative decoding. With num_speculative_tokens=0 the

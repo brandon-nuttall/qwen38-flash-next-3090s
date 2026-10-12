@@ -1,7 +1,7 @@
 From b6a3e1c800c40b9f3c4b23fc12111e2769abb409 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:17:29 -0400
-Subject: [PATCH 26/97] tests: make the eviction-order and QSA capability
+Subject: [PATCH 26/98] tests: make the eviction-order and QSA capability
  controls discriminating
 
 The eviction-order test now drives both free paths through production code, and

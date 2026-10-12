@@ -1,7 +1,7 @@
 From f7bb1a1130991e7440077f2244a210c41ef31ec7 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 08:35:52 -0400
-Subject: [PATCH 46/97] topk: diagnostic-only build defines and qualification
+Subject: [PATCH 46/98] topk: diagnostic-only build defines and qualification
  test cells
 
 Compile-time defines (default 0, device code unchanged by default) for the

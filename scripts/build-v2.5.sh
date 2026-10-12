@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Build the Flash-Next v2.5.1 tree from stock vLLM v0.30.0 + the delta bundle (commit AND tree hash verified against
+# Build the Flash-Next v2.5.2 tree (Merlin engine v2.5.2) from stock vLLM v0.30.0 + the delta bundle (commit AND tree hash verified against
 # upstream/PIN-v2.5), with a fresh python 3.13 venv, the compiled ops the release pins, and the toolchain that
 # FlashInfer and Triton need to compile their kernels on the FIRST serve.
 #
 #   scripts/build-v2.5.sh [SRC_DIR] [VENV_DIR]          (relative paths are fine; they are made absolute first)
 #
 # Inputs (next to this repo or given by env):
-#   BUNDLE     path to v2.5.1-from-upstream-v0.30.0.bundle (release asset, shipped gzipped; sha256 of the UNCOMPRESSED
+#   BUNDLE     path to v2.5.2-from-upstream-v0.30.0.bundle (release asset, shipped gzipped; sha256 of the UNCOMPRESSED
 #              bundle in PIN-v2.5). A .bundle.gz next to it is decompressed for you.
 #   ARTIFACTS  path to build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz (v2.2.0's release asset, reused unchanged by
-#              v2.5.1: its delta is Python only; sha256 in PIN-v2.5). This is the
+#              v2.5.1 and v2.5.2: their delta is Python only; sha256 in PIN-v2.5). This is the
 #              default route: the stock 0.30.0 wheel's build products plus the two own extensions (v2.2.0's) built from this
 #              tree in an Ubuntu 22.04 root (not the reference host's serving builds; PIN-v2.5).
 #   BUILD_OWN=1  the alternative when you do not want the tarball: the stock products come from the vLLM 0.30.0 wheel
@@ -92,7 +92,7 @@ if [ -f "$INIT_MARK" ]; then
   if ! git -C "$SRC" rev-parse -q --verify "$commit^{commit}" >/dev/null 2>&1; then
     git -C "$SRC" remote get-url upstream >/dev/null 2>&1 || git -C "$SRC" remote add upstream "$repo"
     for c in $prereqs; do git -C "$SRC" fetch -q --depth 1 upstream "$c"; done
-    git -C "$SRC" fetch -q "$BUNDLE" "+$ref:refs/heads/v2.5.1"
+    git -C "$SRC" fetch -q "$BUNDLE" "+$ref:refs/heads/v2.5.2"
   fi
   [ "$(git -C "$SRC" rev-parse -q --verify HEAD 2>/dev/null || true)" = "$commit" ] \
     || git -C "$SRC" -c advice.detachedHead=false checkout -q --detach "$commit"

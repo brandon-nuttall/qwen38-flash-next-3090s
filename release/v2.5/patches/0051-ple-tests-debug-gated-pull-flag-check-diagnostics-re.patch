@@ -1,7 +1,7 @@
 From 1ef7e6dd371f4b96816dbe5e3a80e8306dee33f3 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 10:01:40 -0400
-Subject: [PATCH 51/97] ple, tests: debug-gated pull-flag check; diagnostics
+Subject: [PATCH 51/98] ple, tests: debug-gated pull-flag check; diagnostics
  report that they ran
 
 The pull-transport flag check is wired in (rank-gated, off by default, warns when enabled). Both

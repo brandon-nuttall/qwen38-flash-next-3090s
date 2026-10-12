@@ -1,7 +1,7 @@
 From 2ac9b65ac7418d3bbf0728c165151eceeeedf3e8 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Mon, 5 Oct 2026 06:36:02 -0400
-Subject: [PATCH 92/97] gdn: keep the fused packed forward under RecoverSSM
+Subject: [PATCH 92/98] gdn: keep the fused packed forward under RecoverSSM
 
 RecoverSSM's verify needs the Triton decode kernel for its speculative rows, and the previous code met that by turning
 off the fused CUDA decode for the whole layer. That also turned off the fused packed forward, which carries every

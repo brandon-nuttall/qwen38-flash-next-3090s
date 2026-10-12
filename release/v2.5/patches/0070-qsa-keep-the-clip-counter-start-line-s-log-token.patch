@@ -1,7 +1,7 @@
 From c7da5be0920e0cbe42860525d1b4ed6f3f7e9f50 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Thu, 1 Oct 2026 05:39:19 -0400
-Subject: [PATCH 70/97] qsa: keep the clip-counter start line's log token
+Subject: [PATCH 70/98] qsa: keep the clip-counter start line's log token
 
 The post-capture start line keeps the token "QSA clip counter armed (read interval Ns)" that log checks look for;
 the previous change had reworded it. A source test pins the token.

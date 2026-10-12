@@ -52,7 +52,8 @@ the values are the window's last sample (the first sample differs by at most 2 W
 
 ## 3. Checks on this build
 
-- The 0012 test file (guard-reader idle quiesce), GPU tests included, on the four cards: 67 passed.
+- The guard-reader idle-quiesce test file (from the shared Qwen3.8-27B patch series, where the fix is patch 0012; not
+  shipped in this repository), GPU tests included, on the four cards: 67 passed.
 - Release smokes on the default boot: prefix-cache reuse on a repeated 8,414-token prompt (8,320 cached on the second
   send), tool call, reasoning and vision: all pass.
 - 0 engine errors while serving on all six boots of the day (both ladder boots, the default and control boots, and two

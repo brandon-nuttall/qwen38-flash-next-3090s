@@ -1,7 +1,7 @@
 From 58694d76650e08267026a0887bfda4428fb13ed4 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 29 Sep 2026 20:19:14 -0700
-Subject: [PATCH 76/97] recoverssm: one fold per program in the GDN RecoverSSM
+Subject: [PATCH 76/98] recoverssm: one fold per program in the GDN RecoverSSM
  state commit (port of upstream #58863, af0d2b45d7)
 
 Port of the upstream vLLM change #58863 (Apache-2.0). Each program folds either the final or the block-boundary state, not both,

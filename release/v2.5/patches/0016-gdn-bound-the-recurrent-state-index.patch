@@ -1,7 +1,7 @@
 From d34bd5648305041bd84de3966ac3ebd89cf71255 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:13:09 -0400
-Subject: [PATCH 16/97] gdn: bound the recurrent state index
+Subject: [PATCH 16/98] gdn: bound the recurrent state index
 
 Both callers of the guarded kernel (fused recurrent and KDA) are updated in the
 same commit.

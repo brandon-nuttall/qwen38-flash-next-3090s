@@ -1,7 +1,7 @@
 From 186161819913788e925c665722a99e83c2e7acdb Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:13:07 -0400
-Subject: [PATCH 11/97] qsa: bound the pre-indexer request row
+Subject: [PATCH 11/98] qsa: bound the pre-indexer request row
 
 ---
  .../qwen4_exp/nvidia/ops/qsa_pre_indexer.py   | 24 +++++++++++++++++++

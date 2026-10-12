@@ -1,7 +1,7 @@
 From 230b29368e663d063982a30a64c9d7379b7474c6 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 08:18:03 -0400
-Subject: [PATCH 39/97] ple: the pull op resolves live pointers by layer name
+Subject: [PATCH 39/98] ple: the pull op resolves live pointers by layer name
 
 The wait/copy op took host pointers as Python-int arguments, which were baked
 into the AOT compile cache as the tracing process's addresses; the first

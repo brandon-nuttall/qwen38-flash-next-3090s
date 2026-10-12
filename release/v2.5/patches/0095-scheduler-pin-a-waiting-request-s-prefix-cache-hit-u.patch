@@ -1,7 +1,7 @@
 From 0bb87f8f09b3f5d04ff7baa09baac81ecfbc7b46 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 6 Oct 2026 02:49:52 -0400
-Subject: [PATCH 95/97] scheduler: pin a waiting request's prefix-cache hit
+Subject: [PATCH 95/98] scheduler: pin a waiting request's prefix-cache hit
  until it is admitted
 
 A follow-up turn that waits for admission holds no reference on its

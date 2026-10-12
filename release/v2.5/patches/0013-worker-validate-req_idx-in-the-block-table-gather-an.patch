@@ -1,7 +1,7 @@
 From 2dcfb2a7780c0816b8809ac791e9b5dc52826787 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:13:08 -0400
-Subject: [PATCH 13/97] worker: validate req_idx in the block-table gather and
+Subject: [PATCH 13/98] worker: validate req_idx in the block-table gather and
  the slot mapping
 
 ---

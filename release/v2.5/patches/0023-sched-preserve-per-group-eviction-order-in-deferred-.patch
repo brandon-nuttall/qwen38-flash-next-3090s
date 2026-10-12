@@ -1,7 +1,7 @@
 From 8ebb0ef609e112c477ae73fdea6f9547c67ce0e6 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:17:29 -0400
-Subject: [PATCH 23/97] sched: preserve per-group eviction order in deferred
+Subject: [PATCH 23/98] sched: preserve per-group eviction order in deferred
  block free (port of upstream #48532)
 
 The deferred free path flattened every KV cache group into one list and

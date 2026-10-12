@@ -1,7 +1,7 @@
 From 902b83fb28a11ab9b34bcfa1c0ccdc4355ad4311 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Thu, 1 Oct 2026 21:15:44 -0400
-Subject: [PATCH 80/97] recoverssm: allow pipeline parallelism for Qwen4Exp on
+Subject: [PATCH 80/98] recoverssm: allow pipeline parallelism for Qwen4Exp on
  the V2 runner
 
 Upstream RecoverSSM commits a step in the same step's postprocess, hence PP=1. Under pipeline parallelism a

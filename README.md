@@ -10,13 +10,13 @@ follow-ups, behind one OpenAI-compatible endpoint.**
 [![MTP](https://img.shields.io/badge/MTP-K%3D3-6f42c1)](docs/reference.md#stack)
 [![Checkpoint](https://img.shields.io/badge/%F0%9F%A4%97_checkpoint-Qwen3.8--Flash--Next--W4A16--Merlin-ffd21e)](https://huggingface.co/halt95/Qwen3.8-Flash-Next-W4A16-Merlin)
 
-![Flash-Next v2.5.1 at a glance](docs/images/flashnext-v2.5-summary.png)
+![Flash-Next v2.5.2 at a glance](docs/images/flashnext-v2.5-summary.png)
 
 This repository is the serving engine for
 [halt95/Qwen3.8-Flash-Next-W4A16-Merlin](https://huggingface.co/halt95/Qwen3.8-Flash-Next-W4A16-Merlin), a 4-bit
-build of Qwen3.8-Flash-Next (125B MoE): the public vLLM `v0.30.0` tag plus 97 commits, hash-checked build and serve
+build of Qwen3.8-Flash-Next (125B MoE): the public vLLM `v0.30.0` tag plus 98 commits, hash-checked build and serve
 scripts, and container and Proxmox LXC recipes. The whole KV cache stays in VRAM. It is the daily model behind a
-[hermes](https://github.com/NousResearch/hermes-agent) agent. The current release is **v2.5.1**.
+[hermes](https://github.com/NousResearch/hermes-agent) agent. The current release is **v2.5.2** (Merlin engine v2.5.2: v2.5.1 plus the bounds-guard reader fix, so idle cards can drop to P8; see [What's new](#whats-new-in-v252)).
 
 ## Why use it
 
@@ -24,13 +24,17 @@ scripts, and container and Proxmox LXC recipes. The whole KV cache stays in VRAM
   resident at once.
 - **Built for agents.** Follow-up turns resume from cache: in one conversation the next turn starts in **0.96 s**; with
   8 agents at once, 92.5 % of follow-up tokens come from cache and the median follow-up starts in 1.61 s.
-- **Fast.** About 158–174 tok/s single-stream (thinking on, MTP speculative decoding), 534 tok/s across 8 concurrent
-  requests, and 5,200–5,530 tok/s prefill from 10K to 261K tokens.
+- **Fast.** About 162–177 tok/s single-stream (thinking on, MTP speculative decoding), 534 tok/s across 8 concurrent
+  requests, and 5,000–5,530 tok/s prefill from 10K to 261K tokens.
 - **Quality kept.** Every release is gated against the BF16 model: divergence 0.0334, the 262K needle found exactly,
   GSM8K 198/200, structured output 80/80.
 - **Vision and tools.** Up to 42 images per request, Qwen3 tool calling and reasoning parsers.
 - **Reproducible.** The build checks out a pinned commit and tree, and hash-checks every release asset and build
   product before it serves.
+
+Single-stream decode and the 10K/100K prefill points were re-measured on v2.5.2; the other figures are v2.5.1
+measurements, which stand because v2.5.2 changes only the guard reader
+([bench card](benchmarks/2026-10-12/BENCH-CARD.md)).
 
 ## What you need
 
@@ -48,13 +52,13 @@ Where to get Python 3.13 on Debian 12 and Ubuntu, and the rest of the detail:
 ## Quick start
 
 ```bash
-git clone --branch v2.5.1 https://github.com/halt95/qwen38-flash-next-3090s.git && cd qwen38-flash-next-3090s
+git clone --branch v2.5.2 https://github.com/halt95/qwen38-flash-next-3090s.git && cd qwen38-flash-next-3090s
 R=https://github.com/halt95/qwen38-flash-next-3090s/releases/download
-curl -fLO "$R/v2.5.1/v2.5.1-from-upstream-v0.30.0.bundle.gz" && gunzip v2.5.1-from-upstream-v0.30.0.bundle.gz
+curl -fLO "$R/v2.5.2/v2.5.2-from-upstream-v0.30.0.bundle.gz" && gunzip v2.5.2-from-upstream-v0.30.0.bundle.gz
 curl -fLO "$R/v2.2.0/build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz"   # compiled ops, unchanged since v2.2.0
 hf download halt95/Qwen3.8-Flash-Next-W4A16-Merlin --local-dir ~/models/Flash-Next-Merlin   # 115 GiB
 
-BUNDLE=./v2.5.1-from-upstream-v0.30.0.bundle ARTIFACTS=./build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz \
+BUNDLE=./v2.5.2-from-upstream-v0.30.0.bundle ARTIFACTS=./build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz \
   scripts/build-v2.5.sh ./vllm-v2.5 ./venv-v2.5
 TREE=./vllm-v2.5 VENV=./venv-v2.5 CACHE_ROOT=./.vllm-cache-v2.5 scripts/serve-v2.5.sh ~/models/Flash-Next-Merlin
 ```
@@ -68,12 +72,12 @@ wrong: [Troubleshooting](docs/reference.md#troubleshooting).
 ### Container
 
 ```bash
-docker build -t qwen38-flash-next-3090s:v2.5.1 .   # in the clone; fetches the bundle and the compiled ops itself
+docker build -t qwen38-flash-next-3090s:v2.5.2 .   # in the clone; fetches the bundle and the compiled ops itself
 MODEL_DIR=~/models/Flash-Next-Merlin docker compose up -d && docker compose logs -f flash-next
 ```
 
 Run it in the clone, with the checkpoint downloaded as above (outside the clone). Needs `nvidia-container-toolkit` and
-Docker Compose v2. The image has not been rebuilt or GPU-served on v2.5.1; the
+Docker Compose v2. The image has not been rebuilt or GPU-served on v2.5.1 or v2.5.2; the
 bare-metal route above is the verified one. Details: [Container](docs/reference.md#container).
 
 ### Proxmox LXC
@@ -104,6 +108,15 @@ print(reply.choices[0].message.content)
 - Tools use the standard `tools` field; images go in `image_url` content parts, up to 42 per request.
 - If a reply comes back empty with `finish_reason: "stop"` and zero tokens, retry once.
 
+## What's new in v2.5.2
+
+- The bounds-guard reader (on by default, `GUARD=warn`) parks once the engine drains, so idle cards can drop to P8
+  instead of staying in P2 (GitHub issue #2). Every bounds check stays on: a hit from the last step is read and
+  reported before the reader parks. `VLLM_E2_GUARD_IDLE=0` brings back the always-polling reader.
+- One engine commit on top of v2.5.1 (Python only; the compiled ops are unchanged), shared with the Qwen3.8-27B
+  releases. Thanks to [CoolShades](https://github.com/CoolShades) for the idle-power report ([issue #2](https://github.com/halt95/qwen38-flash-next-3090s/issues/2)) and [PR #3](https://github.com/halt95/qwen38-flash-next-3090s/pull/3), which led to this fix.
+  Details: [CHANGELOG.md](CHANGELOG.md#v252).
+
 ## What's new in v2.5.1
 
 v2.5.0 was not published, so this is everything since v2.2.0, v2.5.0's changes included.
@@ -122,7 +135,7 @@ Full patch notes, with every measurement: [CHANGELOG.md](CHANGELOG.md).
 - [CHANGELOG.md](CHANGELOG.md): release notes, newest first.
 - [docs/reference.md](docs/reference.md): what the build and serve scripts do, environment variables, container and
   LXC detail, troubleshooting, how the model sits on the four cards, capacity, known behaviours and how it is measured.
-- Bench cards: [v2.5.1](benchmarks/2026-10-06/BENCH-CARD.md),
+- Bench cards: [v2.5.2](benchmarks/2026-10-12/BENCH-CARD.md), [v2.5.1](benchmarks/2026-10-06/BENCH-CARD.md),
   [v2.5.0 (not published)](benchmarks/2026-10-05/BENCH-CARD_OLD.md), [v2.2.0](benchmarks/2026-09-24/BENCH-CARD.md),
   [v2 gate](benchmarks/2026-09-17/BENCH-CARD.md), v1 ([2026-09-08](benchmarks/2026-09-08/BENCH-CARD.md),
   [2026-09-05](benchmarks/2026-09-05/BENCH-CARD.md)).
@@ -148,7 +161,8 @@ Qwen ([Qwen3.8-Flash-Next](https://huggingface.co/Qwen/Qwen3.8-Flash-Next)), Int
 ([FP8 PLE table](https://huggingface.co/RadixArk/Qwen3.8-Flash-Next-NVFP4)), DominikBucko
 ([MTP INT4 packing recipe](https://github.com/DominikBucko/qwen38-flash-next-2x3090)), the
 [`peakcrosser7` Flash-Next branch](https://github.com/peakcrosser7/vllm/commits/release/qwen38next_offload) behind vLLM
-PRs #53896 and #53899, and aikitoria's open-kernel-module patch (P2P on consumer Ampere). Upstream vLLM fixes in this
+PRs #53896 and #53899, aikitoria's open-kernel-module patch (P2P on consumer Ampere), and [CoolShades](https://github.com/CoolShades) (idle-power
+report, [issue #2](https://github.com/halt95/qwen38-flash-next-3090s/issues/2), and [PR #3](https://github.com/halt95/qwen38-flash-next-3090s/pull/3), behind the guard fix in v2.5.2). Upstream vLLM fixes in this
 tree are credited by PR number in the commit messages and by author in `NOTICE` and in
 [the full credit list](docs/reference.md#credit), which also names independent work on the same hardware class.
 

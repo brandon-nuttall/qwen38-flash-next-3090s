@@ -1,7 +1,7 @@
 From bfb212412ee600ad752b9cbb78beb374217bc414 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 6 Oct 2026 02:49:51 -0400
-Subject: [PATCH 94/97] mamba: key the prompt tail when it lands on a block end
+Subject: [PATCH 94/98] mamba: key the prompt tail when it lands on a block end
 
 With a hash unit finer than the block, the prompt's tail key lands
 exactly on a block end once every block/unit turns. The tail key is the

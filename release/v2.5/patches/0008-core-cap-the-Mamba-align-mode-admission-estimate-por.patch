@@ -1,7 +1,7 @@
 From 58e34d49e5f021b1ca80a4c8c59ea45e7852de52 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:12:36 -0400
-Subject: [PATCH 08/97] core: cap the Mamba align-mode admission estimate (port
+Subject: [PATCH 08/98] core: cap the Mamba align-mode admission estimate (port
  of upstream #57050)
 
 ---

@@ -1,7 +1,7 @@
 From a7456495af6a7495df3edc75a0497c16e5824384 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:13:02 -0400
-Subject: [PATCH 09/97] mamba: bound the state-copy block-table lookups
+Subject: [PATCH 09/98] mamba: bound the state-copy block-table lookups
 
 Ports the check from upstream vLLM PR #50021; a hit is reported through the
 guard telemetry instead of reading out of bounds.

@@ -1,7 +1,7 @@
 From ced96a42dd1898d508908dae97bfcab10b1895f4 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 07:33:48 -0400
-Subject: [PATCH 36/97] kv: restore PP fix #54793 -- no KV tensors for another
+Subject: [PATCH 36/98] kv: restore PP fix #54793 -- no KV tensors for another
  stage's layers
 
 A KV cache group with no layer on a pipeline stage was still given tensors

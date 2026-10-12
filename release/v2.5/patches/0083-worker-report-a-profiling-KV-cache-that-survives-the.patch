@@ -1,7 +1,7 @@
 From 2e0ab24fde046df359f03ce853ea4c26cf45ba5b Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Thu, 1 Oct 2026 21:29:59 -0400
-Subject: [PATCH 83/97] worker: report a profiling KV cache that survives the
+Subject: [PATCH 83/98] worker: report a profiling KV cache that survives the
  teardown
 
 _teardown_profiling_state measures the storage behind the profiling KV caches on entry and the allocated memory

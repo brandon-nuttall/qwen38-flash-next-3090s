@@ -1,7 +1,7 @@
 From 9ee518139488292222644515ef3b1be8175c8cb6 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 00:01:58 -0400
-Subject: [PATCH 32/97] worker: boundary allocator telemetry and an opt-in PLE
+Subject: [PATCH 32/98] worker: boundary allocator telemetry and an opt-in PLE
  row dump
 
 Env-gated diagnostics, inert unless set. Allocator telemetry is read only at

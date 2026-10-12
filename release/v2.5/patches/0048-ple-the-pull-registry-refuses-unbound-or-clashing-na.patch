@@ -1,7 +1,7 @@
 From a8913793c79aff7d2558de0765ea0b2143c9d1be Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 09:45:20 -0400
-Subject: [PATCH 48/97] ple: the pull registry refuses unbound or clashing
+Subject: [PATCH 48/98] ple: the pull registry refuses unbound or clashing
  names; test fixes
 
 A schema walk fails on any pointer-like int parameter of a custom op on the

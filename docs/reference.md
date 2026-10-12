@@ -25,9 +25,10 @@ head of about 2.6B parameters by the config's shapes; Gated DeltaNet linear atte
 at its **full 262,144-token context** on four consumer Ampere cards: a **924,993-token** FP8 KV pool (3.53 full
 262,144-token contexts; three full 262,144-token sessions measured resident at once on v2.5.1 with 0 preemptions), TP2 × PP2 + expert
 parallel, MTP K=3. It is the daily model behind a
-[hermes](https://github.com/NousResearch/hermes-agent) agent. The current release, **v2.5.1**, runs the public `v0.30.0`
-tag plus 97 commits (58 from v2.2.0 and 39 for v2.5.1): agent follow-up turns resume from cache on a 64-token grid,
-the KV pool is larger and prefill is faster than v2.2.0.
+[hermes](https://github.com/NousResearch/hermes-agent) agent. The current release, **v2.5.2** (Merlin engine v2.5.2), runs the public `v0.30.0`
+tag plus 98 commits (58 from v2.2.0, 39 for v2.5.1 and 1 for v2.5.2): agent follow-up turns resume from cache on a 64-token grid,
+the KV pool is larger and prefill is faster than v2.2.0, and since v2.5.2 the bounds-guard reader parks while the
+engine is idle, so idle cards can drop to P8.
 
 ## Build and serve
 
@@ -39,27 +40,27 @@ something unrelated, typically `AttributeError: '_ModelInfo' object has no attri
 
 | path | what |
 |---|---|
-| `upstream/PIN-v2.5` | **v2.5.1:** base commit (`v0.30.0`), bundle hash and branch, release commit and tree hash, the two own extensions' hashes, the stock 0.30.0 wheel (URL and hash), artefact tarball hash, runtime versions |
-| `release/v2.5/patches/0001..0097` | the series over `v0.30.0`, for reading; linear, so `git am --keep-non-patch` on a fresh `v0.30.0` checkout (with `core.autocrlf=false`) replays it to the release tree. Only the tip was built and tested; the intermediate commits are a reading aid. Verified against `SHA256SUMS.v2.5.1` |
-| `release/v2.5/v2.5.1-combined.diff` | one diff from `v0.30.0` to the release commit (212 files): `git apply --index` on `v0.30.0` gives the release tree |
-| `release/v2.5/requirements-pinned.txt`, `build-artifacts.list`, `SHA256SUMS.v2.5.1`, `PACKAGE-MANIFEST.md` | the environment pins (196; transformers 5.18.0; the build tools pip / setuptools-rust / setuptools-scm are pinned in `upstream/PIN-v2.5`), the build-product paths, the hashes of the release assets, the combined diff and the 97 patches (`cd release/v2.5 && sha256sum -c --ignore-missing SHA256SUMS.v2.5.1`), the file manifest |
+| `upstream/PIN-v2.5` | **v2.5.2:** base commit (`v0.30.0`), bundle hash and branch, release commit and tree hash, the two own extensions' hashes, the stock 0.30.0 wheel (URL and hash), artefact tarball hash, runtime versions |
+| `release/v2.5/patches/0001..0098` | the series over `v0.30.0`, for reading; linear, so `git am --keep-non-patch` on a fresh `v0.30.0` checkout (with `core.autocrlf=false`) replays it to the release tree. Only the tip was built and tested; the intermediate commits are a reading aid. Verified against `SHA256SUMS.v2.5.2` |
+| `release/v2.5/v2.5.2-combined.diff` | one diff from `v0.30.0` to the release commit (212 files): `git apply --index` on `v0.30.0` gives the release tree |
+| `release/v2.5/requirements-pinned.txt`, `build-artifacts.list`, `SHA256SUMS.v2.5.2`, `PACKAGE-MANIFEST.md` | the environment pins (196; transformers 5.18.0; the build tools pip / setuptools-rust / setuptools-scm are pinned in `upstream/PIN-v2.5`), the build-product paths, the hashes of the release assets, the combined diff and the 98 patches (`cd release/v2.5 && sha256sum -c --ignore-missing SHA256SUMS.v2.5.2`), the file manifest |
 | `scripts/build-v2.5.sh` | fetch `v0.30.0` from GitHub + the bundle (release asset), check out, assert commit and tree, fresh venv from the pins, the first-serve toolchain links (`lib64` and the unversioned library names) in the venv's CUDA 13.0 wheels, then the compiled ops: the v2.2.0 artefact tarball (default, both own extensions hash-checked) or `BUILD_OWN=1` (stock wheel products + the two extensions compiled from the tree; needs cmake 3.26 or newer, ninja and a C/C++ compiler, and compiles with the venv's CUDA 13.0 nvcc unless `NVCC=` names another nvcc 13.0 or newer), metadata-only install. Relative paths are fine; a re-run resumes an interrupted source fetch or wheel download; every product file is hashed once verified (except `vllm/_version.py`, which the install regenerates; the build asserts the version instead), and a re-run re-checks the whole set |
-| `scripts/serve-v2.5.sh` | the v2.5.1 served entry with every variable exported; same knobs as `serve-v2.2.sh` plus `--use-replayssm`, `--block-size 4096`, `--prefix-match-unit 64`, `VLLM_E2_SIDE_CACHE_LAYOUT=1`, `VLLM_E2_MAMBA_RETAIN_CHECKPOINT=1` and `VLLM_USE_V2_MODEL_RUNNER=1`; `GUARD` now defaults to `warn` in code as well; `COUNTERS` (default off; its FP8 KV clip reader starts after cudagraph capture), `CUDA_HOME` (default: the venv's CUDA 13.0 wheels); checks compiler, ninja, Python headers and nvcc-versus-driver and re-hashes the build products (as recorded by the build) before starting, warns when host RAM or `/dev/shm` is below the qualified sizes, and clears inherited fork knobs |
-| `Dockerfile`, `docker-compose.yml`, `scripts/docker-entrypoint.sh` | the v2.5.1 container: `build-v2.5.sh` at image build (v2.5.1 bundle and unchanged v2.2.0 build-artifacts from their release URLs or the build context; gcc, g++ and ninja for the first serve, the base image's Python headers), `serve-v2.5.sh` as the entrypoint, checkpoint and cache as mounts, the config key added on first start if the mount is writable |
+| `scripts/serve-v2.5.sh` | the v2.5.2 served entry with every variable exported; same knobs as `serve-v2.2.sh` plus `--use-replayssm`, `--block-size 4096`, `--prefix-match-unit 64`, `VLLM_E2_SIDE_CACHE_LAYOUT=1`, `VLLM_E2_MAMBA_RETAIN_CHECKPOINT=1` and `VLLM_USE_V2_MODEL_RUNNER=1`; `GUARD` now defaults to `warn` in code as well; `VLLM_E2_GUARD_IDLE` (since v2.5.2; default 1, kept through the knob reset, 0 or 1 only) lets the guard reader park while the engine is idle; `COUNTERS` (default off; its FP8 KV clip reader starts after cudagraph capture), `CUDA_HOME` (default: the venv's CUDA 13.0 wheels); checks compiler, ninja, Python headers and nvcc-versus-driver and re-hashes the build products (as recorded by the build) before starting, warns when host RAM or `/dev/shm` is below the qualified sizes, and clears inherited fork knobs |
+| `Dockerfile`, `docker-compose.yml`, `scripts/docker-entrypoint.sh` | the v2.5.2 container: `build-v2.5.sh` at image build (v2.5.2 bundle and unchanged v2.2.0 build-artifacts from their release URLs or the build context; gcc, g++ and ninja for the first serve, the base image's Python headers), `serve-v2.5.sh` as the entrypoint, checkpoint and cache as mounts, the config key added on first start if the mount is writable |
 | `lxc/pve-create.sh`, `lxc/provision.sh`, `lxc/flash-next.service`, `lxc/nvidia-prestart.sh` | the Proxmox LXC form of the same thing: create the container with the device nodes and mounts, provision it (NVIDIA userspace, gcc/ninja/Python headers, `build-v2.5.sh`, config key, systemd unit), serve on boot; a pre-start hookscript that recreates the host's device nodes after a reboot |
 | `scripts/make-e1-config.py` | adds the one config key to the published checkpoint, inside `text_config`, and re-parses the result to prove it landed where the engine reads it |
 | `scales/qsa_kv_scales_262k.json`, `calib/` | the sidecar and how it was made (unchanged from v1) |
 
 ```bash
-# v2.5.1. Release assets: v2.5.1-from-upstream-v0.30.0.bundle.gz (required),
+# v2.5.2. Release assets: v2.5.2-from-upstream-v0.30.0.bundle.gz (required),
 # build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz (unchanged compiled ops; or BUILD_OWN=1 to compile the two own extensions)
-git clone --branch v2.5.1 https://github.com/halt95/qwen38-flash-next-3090s.git && cd qwen38-flash-next-3090s
-R=https://github.com/halt95/qwen38-flash-next-3090s/releases/download/v2.5.1
-curl -fLO "$R/v2.5.1-from-upstream-v0.30.0.bundle.gz"
+git clone --branch v2.5.2 https://github.com/halt95/qwen38-flash-next-3090s.git && cd qwen38-flash-next-3090s
+R=https://github.com/halt95/qwen38-flash-next-3090s/releases/download/v2.5.2
+curl -fLO "$R/v2.5.2-from-upstream-v0.30.0.bundle.gz"
 curl -fLO "https://github.com/halt95/qwen38-flash-next-3090s/releases/download/v2.2.0/build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz"      # 241 MB
 hf download halt95/Qwen3.8-Flash-Next-W4A16-Merlin --local-dir /path/to/Qwen3.8-Flash-Next-W4A16-Merlin   # 115 GiB
-gunzip v2.5.1-from-upstream-v0.30.0.bundle.gz
-BUNDLE=./v2.5.1-from-upstream-v0.30.0.bundle ARTIFACTS=./build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz \
+gunzip v2.5.2-from-upstream-v0.30.0.bundle.gz
+BUNDLE=./v2.5.2-from-upstream-v0.30.0.bundle ARTIFACTS=./build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz \
   scripts/build-v2.5.sh ./vllm-v2.5 ./venv-v2.5
 python3 scripts/make-e1-config.py /path/to/Qwen3.8-Flash-Next-W4A16-Merlin   # no-op if the config already carries the key
 TREE=./vllm-v2.5 VENV=./venv-v2.5 CACHE_ROOT=./.vllm-cache-v2.5 HOST=0.0.0.0 scripts/serve-v2.5.sh /path/to/Qwen3.8-Flash-Next-W4A16-Merlin
@@ -75,7 +76,7 @@ the four deltas between its gate command and the shipped one are in
 set `VLLM_API_KEY` (or pass `--api-key` after the checkpoint; extra arguments go to `vllm serve`), or keep the default
 `127.0.0.1` behind a proxy.
 
-**Requirements.** Linux x86-64 with glibc 2.34 or newer for the v2.5.1 build products (Ubuntu 22.04, Debian 12, RHEL 9 or
+**Requirements.** Linux x86-64 with glibc 2.34 or newer for the v2.5.2 build products (Ubuntu 22.04, Debian 12, RHEL 9 or
 later); an NVIDIA driver with CUDA 13.0 or newer (the 580 series or later; tested on 595.84 / CUDA 13.2 and 610.43.02); git, curl; Python 3.13 with venv and
 headers, as `python3.13` on `PATH`. Debian 13 packages it (`apt install python3.13-venv python3.13-dev`); Ubuntu
 22.04 / 24.04 get it from the deadsnakes PPA (same package names); on Debian 12 or RHEL 9 use a standalone build such
@@ -108,8 +109,8 @@ Read [Known behaviours](#known-behaviours-of-the-qwen38-flash-next-architecture-
 
 ## Container
 
-The container recipe is one image that builds the pinned v2.5.1 tree and serves it (for v2.0.1, check out the `v2.0.1`
-tag). **Unverified for v2.5.1:** the image has not been rebuilt or GPU-served on this release (its recipe changed only
+The container recipe is one image that builds the pinned v2.5.2 tree and serves it (for v2.0.1, check out the `v2.0.1`
+tag). **Unverified for v2.5.1 and v2.5.2:** the image has not been rebuilt or GPU-served on these releases (its recipe changed only
 in names and the bundle; for v2.2.0 the image was built and its entrypoint checks run on a host without GPUs). Use the
 bare-metal route ([Build and serve](#build-and-serve)) for a verified install. Host requirements:
 
@@ -125,8 +126,8 @@ bare-metal route ([Build and serve](#build-and-serve)) for a verified install. H
   on disk (115 GiB).
 
 ```bash
-git clone --branch v2.5.1 https://github.com/halt95/qwen38-flash-next-3090s.git && cd qwen38-flash-next-3090s
-docker build -t qwen38-flash-next-3090s:v2.5.1 .      # fetches the v2.5.1 bundle + v2.2.0 build-artifacts asset; installs the first-serve toolchain
+git clone --branch v2.5.2 https://github.com/halt95/qwen38-flash-next-3090s.git && cd qwen38-flash-next-3090s
+docker build -t qwen38-flash-next-3090s:v2.5.2 .      # fetches the v2.5.2 bundle + v2.2.0 build-artifacts asset; installs the first-serve toolchain
 hf download halt95/Qwen3.8-Flash-Next-W4A16-Merlin --local-dir /path/to/Qwen3.8-Flash-Next-W4A16-Merlin   # 115 GiB; outside the clone (see below)
 MODEL_DIR=/path/to/Qwen3.8-Flash-Next-W4A16-Merlin docker compose up -d
 docker compose logs -f flash-next      # wait for "Application startup complete" (about 5–6 min the first time, about 2–3 min after)
@@ -168,7 +169,7 @@ attach it with `pct set <CTID> --hookscript local:snippets/nvidia-prestart.sh` (
 Snippets content type enabled).
 
 ```bash
-git clone --branch v2.5.1 https://github.com/halt95/qwen38-flash-next-3090s.git && cd qwen38-flash-next-3090s   # on the Proxmox host
+git clone --branch v2.5.2 https://github.com/halt95/qwen38-flash-next-3090s.git && cd qwen38-flash-next-3090s   # on the Proxmox host
 hf download halt95/Qwen3.8-Flash-Next-W4A16-Merlin --local-dir /path/to/models/Qwen3.8-Flash-Next-W4A16-Merlin   # 115 GiB; the CT sees it at /models/Qwen3.8-Flash-Next-W4A16-Merlin
 CTID=201 MODELS=/path/to/models STORAGE=local-lvm lxc/pve-create.sh   # STORAGE: your rootfs storage (pvesm status), e.g. local-zfs
 install -m 0755 lxc/nvidia-prestart.sh /var/lib/vz/snippets/nvidia-prestart.sh && pct set 201 --hookscript local:snippets/nvidia-prestart.sh
@@ -349,16 +350,16 @@ mode).
 
 ### Stack
 
-| piece | v2.5.1 |
+| piece | v2.5.2 |
 |---|---|
-| vLLM | public tag **`v0.30.0`** (`ced6857afa`) + 97 commits (58 from v2.2.0 and 39 for v2.5.1), release commit **`96a0d13b6e`** (tree `0df6d7ef…`, head of the bundle's branch `v2.5.1-public`; `release/v2.5/patches/`, a linear series that replays with `git am`; build from the bundle); `release/v2.5/v2.5.1-combined.diff` is the same delta as one applyable diff |
-| compiled ops | the v2.2.0 compiled-ops tarball is reused unchanged because the 39 commits after v2.2.0 change no compiled code (Python, plus comment-only edits in three C/CUDA files; no CMake or build file) (`_C_stable_libtorch` `6cb8bc77…`, `_moe_C_stable_libtorch` `66acb123…`); `BUILD_OWN=1` compiles both extensions from the tree. The 2,005 build products (2,004 hash-checked; the install regenerates `vllm/_version.py`) ship in the v2.2.0 tarball; both routes are hash-pinned in `upstream/PIN-v2.5` |
+| vLLM | public tag **`v0.30.0`** (`ced6857afa`) + 98 commits (58 from v2.2.0, 39 for v2.5.1 and 1 for v2.5.2), release commit **`de6e2c2fe9`** (tree `05e6d1a5…`, head of the bundle's branch `v2.5.2-public`; `release/v2.5/patches/`, a linear series that replays with `git am`; build from the bundle); `release/v2.5/v2.5.2-combined.diff` is the same delta as one applyable diff |
+| compiled ops | the v2.2.0 compiled-ops tarball is reused unchanged because the 40 commits after v2.2.0 change no compiled code (Python, plus comment-only edits in three C/CUDA files; no CMake or build file) (`_C_stable_libtorch` `6cb8bc77…`, `_moe_C_stable_libtorch` `66acb123…`); `BUILD_OWN=1` compiles both extensions from the tree. The 2,005 build products (2,004 hash-checked; the install regenerates `vllm/_version.py`) ship in the v2.2.0 tarball; both routes are hash-pinned in `upstream/PIN-v2.5` |
 | environment | Python 3.13, torch 2.13.0 (CUDA 13.0), triton 3.7.1, flashinfer 0.6.18.post1, 196 pins in `release/v2.5/requirements-pinned.txt` (transformers 5.18.0); CUDA runtime from the venv wheels; the first serve compiles FlashInfer and Triton kernels with the pinned CUDA 13.0 nvcc wheels plus a system C/C++ compiler, ninja and the Python 3.13 headers; driver CUDA ≥ 13.0 |
 | shape | as v2.0.1: TP2 × PP2 + EP, `VLLM_PP_LAYER_PARTITION=25,23`, MTP K=3 probabilistic, FULL_AND_PIECEWISE cudagraphs with captures to 32, `max-num-seqs 8`, prefill chunk 1,024, KV pin 4.1e9, fp8_e4m3 KV with the sidecar, prefix caching, `NCCL_PROTO=LL`, `--shutdown-timeout 60`; plus `VLLM_USE_BREAKABLE_CUDAGRAPH=0`, `--use-replayssm`, `--block-size 4096`, `--prefix-match-unit 64`, `VLLM_E2_SIDE_CACHE_LAYOUT=1`, `VLLM_E2_MAMBA_RETAIN_CHECKPOINT=1`, `VLLM_USE_V2_MODEL_RUNNER=1`, image limit 42 with 4 MP per image |
 | PLE table | host-mapped pull transport, home GPU 0, fail-closed (`VLLM_E2_PLE_PULL_TRANSPORT=1`, `VLLM_PLE_OFFLOAD_HOME_DEVICE=0`; unset pull transport defaults to 1) |
 | embeddings | pinned host tables on both stages (`VLLM_HOST_EMBED_TABLE=1`) |
 | determinism | `MERLIN_FULL_K`, `MERLIN_QSA_SORT`, `MERLIN_TIE_DET`, `MERLIN_TIE_RECENT`, `MERLIN_TOPK_SORTED_EMIT` = 1 by default when unset (`=0` opts out for direct engine use; the launcher sets 1) |
-| instrumentation | bounds guards on in `warn`; exact-restart and FP8 KV clip counters off by default (logging only; `COUNTERS=1` turns them on; the FP8 KV clip counter reader starts after cudagraph capture) |
+| instrumentation | bounds guards on in `warn`; since v2.5.2 the guard reader parks while the engine is idle (`VLLM_E2_GUARD_IDLE=1`, launcher default; `0` polls always); exact-restart and FP8 KV clip counters off by default (logging only; `COUNTERS=1` turns them on; the FP8 KV clip counter reader starts after cudagraph capture) |
 
 The v2.0.1 stack is in [docs/history.md](history.md#v201-stack).
 
@@ -488,7 +489,9 @@ in the gate.
   mechanism: a re-claimed, never-zeroed ring row read as a RoPE position). Bounds guards turn a recurrence into a
   named, counted failure when their reader is on; before v2.5 the reader was **off by default** in code, so a masked
   fault at an always-fatal site was counted but never read or raised unless `GUARD=warn` was set (the served
-  profile always set it). Since v2.5 the code default is `warn` as well; `GUARD=off` turns the reader off. Not fixed
+  profile always set it). Since v2.5 the code default is `warn` as well; `GUARD=off` turns the reader off. Since v2.5.2
+  the reader parks while the engine is idle, after a final read of every counter, so leaving it on no longer holds idle
+  cards in P2. Not fixed
   in v2.0.x; no rate is claimed. **Contained in v2.2.0**: ring rows are tagged and validated before
   pooling, and with the served profile's `GUARD=warn` a mismatched row stops the engine with a named cause instead of
   faulting (see [What changed in v2.2.0](history.md#what-changed-in-v220)); the fault is not proven absent.
@@ -531,5 +534,6 @@ The next release focuses on single-stream decode and capacity.
   FP8 PLE table: [RadixArk/Qwen3.8-Flash-Next-NVFP4](https://huggingface.co/RadixArk/Qwen3.8-Flash-Next-NVFP4);
   MTP INT4 packing recipe adapted from [DominikBucko/qwen38-flash-next-2x3090](https://github.com/DominikBucko/qwen38-flash-next-2x3090);
   P2P on consumer Ampere: aikitoria's open-kernel-module patch
+- Idle power: [CoolShades](https://github.com/CoolShades) (idle-power report, [issue #2](https://github.com/halt95/qwen38-flash-next-3090s/issues/2), and [PR #3](https://github.com/halt95/qwen38-flash-next-3090s/pull/3)), behind the guard fix in Merlin engine v2.5.2
 - Independent work on the same hardware class: [alesha-pro/qwen38-flash-next-4x3090](https://github.com/alesha-pro/qwen38-flash-next-4x3090),
   [noonghunna/club-3090](https://github.com/noonghunna/club-3090), [tfriedel/qwen3.6-rtx3090-lab](https://github.com/tfriedel/qwen3.6-rtx3090-lab)

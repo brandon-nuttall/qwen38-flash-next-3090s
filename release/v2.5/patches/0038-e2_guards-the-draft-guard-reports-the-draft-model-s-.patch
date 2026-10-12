@@ -1,7 +1,7 @@
 From 698f7bdcbeefe689a10d3d698208cbc2071de1b3 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 07:53:15 -0400
-Subject: [PATCH 38/97] e2_guards: the draft guard reports the draft model's
+Subject: [PATCH 38/98] e2_guards: the draft guard reports the draft model's
  own architecture
 
 ---

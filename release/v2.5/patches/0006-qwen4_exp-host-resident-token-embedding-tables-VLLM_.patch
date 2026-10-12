@@ -1,7 +1,7 @@
 From 7da8546e1f1f74da2a442997e372133251ca5e2f Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:12:31 -0400
-Subject: [PATCH 06/97] qwen4_exp: host-resident token embedding tables
+Subject: [PATCH 06/98] qwen4_exp: host-resident token embedding tables
  (VLLM_HOST_EMBED_TABLE)
 
 Keeps the token embedding table in pinned host memory behind a UVA view for the

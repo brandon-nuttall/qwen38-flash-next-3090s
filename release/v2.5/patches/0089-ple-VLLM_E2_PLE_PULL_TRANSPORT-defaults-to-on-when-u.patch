@@ -1,7 +1,7 @@
 From eeef544c6543446d2ac794905faf514b49e7a9a2 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Sun, 4 Oct 2026 09:07:17 -0400
-Subject: [PATCH 89/97] ple: VLLM_E2_PLE_PULL_TRANSPORT defaults to on when
+Subject: [PATCH 89/98] ple: VLLM_E2_PLE_PULL_TRANSPORT defaults to on when
  unset
 
 With the switch unset, the PLE took upstream's UVA backend, whose Triton lookup kernel needs fp8e4nv, which sm_86

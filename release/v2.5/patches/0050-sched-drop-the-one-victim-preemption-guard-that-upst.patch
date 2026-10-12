@@ -1,7 +1,7 @@
 From e12f417d35c1a0ffb5d70d1d814b8d3540533fbe Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 10:00:36 -0400
-Subject: [PATCH 50/97] sched: drop the one-victim preemption guard that
+Subject: [PATCH 50/98] sched: drop the one-victim preemption guard that
  upstream #49675 made dead
 
 The cascade test now expects zero needless victims.

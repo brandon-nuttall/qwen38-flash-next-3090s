@@ -1,7 +1,7 @@
 From 5d3c205c759adc02cf910abcc532a3fbea555234 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 08:37:51 -0400
-Subject: [PATCH 30/97] e2_guards: executable graph-profile and
+Subject: [PATCH 30/98] e2_guards: executable graph-profile and
  breakable-cudagraph guards
 
 New vllm/v1/e2_guards.py, called from the target and MTP constructors on every

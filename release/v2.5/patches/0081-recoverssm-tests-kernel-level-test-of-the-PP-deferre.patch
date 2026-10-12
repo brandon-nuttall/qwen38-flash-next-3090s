@@ -1,7 +1,7 @@
 From 07c1927b5596d2a9f91b4f565b64634298a6f3de Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Thu, 1 Oct 2026 21:19:19 -0400
-Subject: [PATCH 81/97] recoverssm, tests: kernel-level test of the PP-deferred
+Subject: [PATCH 81/98] recoverssm, tests: kernel-level test of the PP-deferred
  commit
 
 Runs the real Triton verify and commit kernels (CUDA, or CPU under TRITON_INTERPRET=1): verify A, verify B, then

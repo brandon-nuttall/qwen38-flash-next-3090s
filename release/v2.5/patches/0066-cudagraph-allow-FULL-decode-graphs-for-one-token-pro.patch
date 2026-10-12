@@ -1,7 +1,7 @@
 From c64a07fef7b167c0f603c0f4312d917b8eae5c8f Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Mon, 28 Sep 2026 12:48:52 -0700
-Subject: [PATCH 66/97] cudagraph: allow FULL decode graphs for one-token
+Subject: [PATCH 66/98] cudagraph: allow FULL decode graphs for one-token
  prompt tails (port of upstream #58400)
 
 Port of the upstream vLLM change #58400 (Apache-2.0). A prompt tail of one token can run under the FULL decode graph. The

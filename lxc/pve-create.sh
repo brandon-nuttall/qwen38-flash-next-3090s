@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create a Proxmox VE LXC container for Flash-Next v2.5.1, modelled on the reference host: a PRIVILEGED Debian 13
+# Create a Proxmox VE LXC container for Flash-Next v2.5.2, modelled on the reference host: a PRIVILEGED Debian 13
 # container with the four cards passed through as devices. Run ON THE PROXMOX HOST as root:
 #
 #   CTID=201 MODELS=/path/to/models CACHE=/path/to/flash-next-cache lxc/pve-create.sh

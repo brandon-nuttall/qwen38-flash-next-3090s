@@ -1,7 +1,7 @@
 From 04781aba03425673e651e7e5194c51d5d8c2b975 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 08:35:40 -0400
-Subject: [PATCH 44/97] topk: determinism toggles for greedy repeatability
+Subject: [PATCH 44/98] topk: determinism toggles for greedy repeatability
 
 - MERLIN_FULL_K: deterministic Marlin MoE split-K (after unmerged upstream #46639).
 - MERLIN_QSA_SORT: canonical order for the QSA selected blocks.

@@ -1,7 +1,7 @@
 From d9827c4d713d899908c4fbf61d26fe2f06e78240 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Thu, 17 Sep 2026 20:14:36 -0700
-Subject: [PATCH 59/97] kv: share token-to-request mappings across KV cache
+Subject: [PATCH 59/98] kv: share token-to-request mappings across KV cache
  groups (port of upstream #57102)
 
 Port of the upstream vLLM change #57102 (Apache-2.0). KV cache groups that use the same token-to-request mapping now share one

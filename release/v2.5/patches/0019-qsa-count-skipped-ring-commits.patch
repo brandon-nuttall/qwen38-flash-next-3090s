@@ -1,7 +1,7 @@
 From c296dafe45fef5cef0dd7350bcb6219d72e48cef Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 22 Sep 2026 04:13:09 -0400
-Subject: [PATCH 19/97] qsa: count skipped ring commits
+Subject: [PATCH 19/98] qsa: count skipped ring commits
 
 ---
  .../gpu/test_qsa_ring_skip_telemetry.py       | 204 ++++++++++++++++++

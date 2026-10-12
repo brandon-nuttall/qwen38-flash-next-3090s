@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Serve Flash-Next v2.5.1: Qwen3.8-Flash-Next-W4A16-Merlin at 262K per request with a 924,993-token KV pool on
+# Serve Flash-Next v2.5.2: Qwen3.8-Flash-Next-W4A16-Merlin at 262K per request with a 924,993-token KV pool on
 # 4x RTX 3090 -- TP2 x PP2 + expert parallel, MTP K=3, host-mapped PLE pull transport, host-resident embeddings,
 # prefix caching with the GDN prefix checkpoint retained and matched every 64 tokens, RecoverSSM state recovery, the
-# side-cache layout, the kernel switches on. It follows the reference host's serving entry (the v2.5.1 tree) with every variable exported; one default differs from it: CUDA_HOME is the venv's CUDA 13.0
+# side-cache layout, the kernel switches on. It follows the reference host's serving entry (the v2.5.1 tree, plus v2.5.2's VLLM_E2_GUARD_IDLE=1) with every variable exported; one default differs from it: CUDA_HOME is the venv's CUDA 13.0
 # toolkit (see below). The reference host's numbers (v2.5.1 and v2.2.0) ran with the logging-only counters on; here they are off.
 #
 #   TREE=./vllm-v2.5 VENV=./venv-v2.5 scripts/serve-v2.5.sh /path/to/Qwen3.8-Flash-Next-W4A16-Merlin [extra vllm args]
@@ -14,7 +14,9 @@
 # below), PLE_HOME (0: the card that hosts the PLE offload home; stage-0 card on the reference host), SCALES (KV scale
 # sidecar, defaults to scales/qsa_kv_scales_262k.json, the same bytes v2.0.1 serves), CACHE_ROOT (torch compile /
 # cudagraph cache dir; use a NEW one for v2.5 -- v2.2 artefacts do not carry over; first boot compiles, ~6 min),
-# GUARD (bounds-guard telemetry mode; default warn, as qualified and the code default since v2.5), COUNTERS=1 to add the two
+# GUARD (bounds-guard telemetry mode; default warn, as qualified and the code default since v2.5), VLLM_E2_GUARD_IDLE
+# (default 1 since v2.5.2: the guard reader parks once the engine drains, so idle cards can drop to P8; 0 = poll
+# always, the v2.5.1 behaviour), COUNTERS=1 to add the two
 # logging-only counters (exact-restart counters every 30 s, FP8 KV clip counter every 300 s; see below), CUDA_HOME (the
 # toolkit FlashInfer and Triton compile with on the first serve; default: the venv's CUDA 13.0 wheels).
 #
@@ -255,7 +257,8 @@ fi
 
 export VLLM_PP_LAYER_PARTITION=25,23
 # the qualified profile sets every fork knob explicitly: drop anything inherited first (test-only fault injectors,
-# diagnostics, the calibration collector, the breakable-graph opt-out, a correctness switch turned off by hand)
+# diagnostics, the calibration collector, the breakable-graph opt-out, a correctness switch turned off by hand).
+# VLLM_E2_GUARD_IDLE intentionally survives this reset: it is defaulted to 1 and validated below.
 for v in $(env | sed -n 's/^\(MERLIN_[A-Z0-9_]*\)=.*/\1/p'); do unset "$v"; done
 unset VLLM_PLE_CPU_OFFLOAD VLLM_PLE_FP8_GLOBAL_SCALE VLLM_PLE_TEST_FAULT VLLM_PLE_TEST_FAULT_GATE VLLM_PLE_TEST_FAULT_LOG \
       VLLM_QSA_KV_COLLECT VLLM_QSA_KV_CLIP_COUNT VLLM_E2_ALLOW_BREAKABLE VLLM_E2_EXPECTED_CUDAGRAPH_MODE \
@@ -272,6 +275,9 @@ export HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1
 # the kernel switches as qualified (docs/history.md, "What changed in v2.2.0"); since v2.5 they are also the code default
 export MERLIN_FULL_K=1 MERLIN_QSA_SORT=1 MERLIN_TIE_DET=1 MERLIN_TIE_RECENT=1 MERLIN_TOPK_SORTED_EMIT=1
 export VLLM_E2_GUARD_MODE="${GUARD:-warn}"
+# v2.5.2 (guard fix): the reader may park after the engine drains (idle cards reach P8); 0 = poll always
+export VLLM_E2_GUARD_IDLE="${VLLM_E2_GUARD_IDLE:-1}"
+case "$VLLM_E2_GUARD_IDLE" in 0|1) ;; *) echo "VLLM_E2_GUARD_IDLE must be 0 or 1, got '$VLLM_E2_GUARD_IDLE'"; exit 1 ;; esac
 # v2.5: the side-cache layout and Model Runner V2 (RecoverSSM requires it), exported as qualified
 export VLLM_E2_SIDE_CACHE_LAYOUT=1 VLLM_USE_V2_MODEL_RUNNER=1
 # the multi-turn checkpoint retention (code default 1), pinned so an inherited =0 cannot switch it off

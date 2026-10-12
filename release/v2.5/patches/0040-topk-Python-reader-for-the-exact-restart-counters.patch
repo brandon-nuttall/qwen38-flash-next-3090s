@@ -1,7 +1,7 @@
 From 3f54a3fa196c231332056e8440c4d3673bde7f61 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Wed, 23 Sep 2026 08:31:06 -0400
-Subject: [PATCH 40/97] topk: Python reader for the exact-restart counters
+Subject: [PATCH 40/98] topk: Python reader for the exact-restart counters
 
 Reads persistent_topk_exact_counters into {slot: value}, logs one line on a
 cadence, and degrades to a one-time warning when the op is absent.

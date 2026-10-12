@@ -1,7 +1,7 @@
 From bfb30213a18ea0c9c68705354f2cb008c2dde428 Mon Sep 17 00:00:00 2001
 From: halt95 <halt95@users.noreply.github.com>
 Date: Tue, 29 Sep 2026 18:40:22 -0700
-Subject: [PATCH 75/97] recoverssm: read the GDN RecoverSSM flag defensively in
+Subject: [PATCH 75/98] recoverssm: read the GDN RecoverSSM flag defensively in
  _forward_core (port of upstream #58863, c1d2da8773)
 
 Port of the upstream vLLM change #58863 (Apache-2.0). One check read use_gdn_recoverssm directly; it now uses getattr with a False
