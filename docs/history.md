@@ -1,7 +1,7 @@
 # Release history
 
-Earlier release notes, moved here from the [README](../README.md). The current release is v2.5.2; its notes, and v2.5.1's, are in
-[CHANGELOG.md](../CHANGELOG.md#v252).
+Earlier release notes, moved here from the [README](../README.md). The current release is v2.5.3 (engine v2.5.2); its notes, and those of v2.5.2 and v2.5.1, are in
+[CHANGELOG.md](../CHANGELOG.md#v253).
 
 ## The releases in brief (v2.5.2, v2.5.1, v2.2.0, v2.0.1, v2)
 

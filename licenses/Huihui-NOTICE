@@ -81,8 +81,9 @@ Other sources in the served checkpoint:
 Changes made in this derivative (halt95, 2026). Every file below is modified or added relative to
 halt95/Swift1.5-Qwen3.8-Flash-Next-W4A16-Merlin; the files not listed are byte-identical to that checkpoint's:
   - model-00001-of-00017.safetensors and model-00003-of-00017.safetensors through
-    model-00015-of-00017.safetensors (14 shards; they hold the edited tensors), model.safetensors.index.json
-    (regenerated), and the new EDITED_TENSORS.txt (the names of the 132 edited tensors).
+    model-00015-of-00017.safetensors (14 shards; they hold the edited tensors) and the new EDITED_TENSORS.txt (the
+    names of the 132 edited tensors). model.safetensors.index.json is unchanged: the edited tensors keep their names
+    and shards.
     96 dense modules were changed by transplanting huihui-ai's abliteration onto
     Swift 1.5's weights: self_attn.o_proj (12 layers) and mlp.shared_expert.down_proj (48 layers) in BF16, and
     linear_attn.out_proj (36 GDN layers), re-packed to INT8 per-channel symmetric in the Merlin checkpoint's format
@@ -95,6 +96,7 @@ halt95/Swift1.5-Qwen3.8-Flash-Next-W4A16-Merlin; the files not listed are byte-i
     scales/qsa_kv_scales_swift_huihui_dense.json (the same bytes); static FP8 K/V scales calibrated on this checkpoint.
     This file is model-derived data, not Apache-2.0: it is subject to the Swift Open License v1.0 (licenses/Huihui-LICENSE)
     and the Qwen Community License 1.0 (LICENSE.qwen-community-1.0), the same licences as the checkpoint it was calibrated on.
+    It replaces the Swift 1.5 checkpoint's qsa_kv_scales_swift.json, which is not shipped.
   - The routed experts, the MTP draft head, the PLE table, model_extra_tensors.safetensors and every
     configuration file (config.json, quantization_config.json, generation_config.json, chat_template.jinja,
     tokenizer_config.json, preprocessor_config.json, processor_config.json) are unchanged.

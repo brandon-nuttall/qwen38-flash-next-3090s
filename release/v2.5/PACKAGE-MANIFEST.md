@@ -34,7 +34,7 @@ cannot hash itself.
 
 | file | sha256 |
 |---|---|
-| `README.md` | `001c445c8c9f0d62cec9207aa821b7eb83a3c973c99fead470d8b801c8fb5060` |
+| `README.md` | `a949a9be0ab945f8a1b63bf615bdb379fa007c98184f74249f88dc8bd9f254aa` |
 | `NOTICE` | `46718d40dfe00106c0d095947f23b4e9570db77ffbe175c85152921b6a860e1e` |
 | `LICENSE` | `cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30` |
 | `LICENSE.qwen-community-1.0` | `465dcafcac7d3542a0cfc150fc550e0b7228c22ee68c8f1f81db942e7c658cb4` |
@@ -43,9 +43,9 @@ cannot hash itself.
 | `scripts/serve-v2.5.sh` | `3059569d1cc0fa4b2385b9a65eee9ecbe1d64bd801f3cd3da42203bd455a8e0f` |
 | `scripts/topo_select.py` | `5ec2af2f8fdf179e2b7ab2ec8d29a0633e5570fa780c5c51c5bb11b159329ffc` |
 | `docs/topology-selector.md` | `b67592ffa0dad04774413ee610acb3a51d7c71741235690ffd7d32dd428965f5` |
-| `docs/history.md` | `4c2b83a3932a5693432f051ae6700bbf7dcb5133814a6de1fb3d4e037919c333` |
+| `docs/history.md` | `84dfc64928a90fdd56c951176e35318879b3ee90caa8f5f6def821a624ab1369` |
 | `CHANGELOG.md` | `8902488296b8f87dca2360bd5a2fc338ad8e46b518e50513a9b1ea6b4bf19de0` |
-| `docs/reference.md` | `83dd4fd0b73622122017b0a5eea12031f59e359741b6d2a1055d9ff34f50ac3e` |
+| `docs/reference.md` | `a0b4aa326b9aa38a84ba0c5d73a241cdcefdb97c98d125ec99f592c4cb1ca0ac` |
 | `docs/images/flashnext-v2.2-layout.png` | `f76b34f6710c9ab58bce62dbcede8c1cb63e31246060e989369405cd8a6503c3` |
 | `docs/images/flashnext-nvlink-pairing.png` | `f0e5c901d853ec2396db29082d6b2d6edaeeac20dd6463e351c7bfb4e9cd13fc` |
 | `Dockerfile` | `d79a423c2e1263526ebe369059003c7733f1a8e0ab0d664824933f109d399551` |
@@ -74,8 +74,8 @@ cannot hash itself.
 | `scales/qsa_kv_scales_swift_huihui_dense.json` | `9aa3a6a5b60e08ad9b547b8b9d29219024a8d66036be0e76498b798bedd302f4` |
 | `release/checkpoint-huihui.sha256` | `1f4781dc33500b9517ff856e4c4caa9657892eaff94c101d99c3b117911442d1` |
 | `licenses/Huihui-LICENSE` | `7a3af3e6b43fcb7c486ea8167252a36a9532dcbdf02d1704a749881872ec551c` |
-| `licenses/Huihui-NOTICE` | `f34014cf193ddf28bb5a7a046dc1f6d53958565009fde591177fb1acd7bf26ab` |
-| `benchmarks/2026-10-12/Huihui-BENCH-CARD.md` | `0d676b4627f2530e9bf65974c5f11dd736cbfa333dbc18b6cd9bb65c19c260fc` |
+| `licenses/Huihui-NOTICE` | `fddff07eb43f085f99f734b0611c1c49c156f47b8494f9df81f9561214cfc2c3` |
+| `benchmarks/2026-10-12/Huihui-BENCH-CARD.md` | `2689a910a7f39d7722b18aedf140ff72f7fa03319a4f56bd16fde82ed0b027fc` |
 | `benchmarks/2026-10-12/huihui-decode-v2.5.2.png` | `8d5b56cb7cb12bc8772465e4629ed9a9bb55b13359f53acf08e5349726096451` |
 | `release/v2.5/SHA256SUMS.v2.5.2` | `bc3b1caf2b56f56cdfb5858ed3ef392c5680ea09e573366ef68ba48dfb33040c` |
 

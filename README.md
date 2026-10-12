@@ -130,7 +130,7 @@ Quality gate against Swift 1.5 in the same run (on v2.5.1): GSM8K (1,319) 96.29 
 repository root after the [Quick start](#quick-start) build:
 
 ```bash
-hf download halt95/Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin --revision 42afb01fca3e696f378a1ef257596731e00e829f \
+hf download halt95/Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin --revision 736e7fb2e95775693f7cc3c1bf525ef0f566818d \
   --local-dir ~/models/Swift1.5-Huihui
 (cd ~/models/Swift1.5-Huihui && sha256sum -c --quiet "$OLDPWD/release/checkpoint-huihui.sha256") && echo checkpoint OK
 TREE=./vllm-v2.5 VENV=./venv-v2.5 CACHE_ROOT=./.vllm-cache-v2.5 scripts/serve-huihui.sh ~/models/Swift1.5-Huihui
@@ -139,8 +139,10 @@ TREE=./vllm-v2.5 VENV=./venv-v2.5 CACHE_ROOT=./.vllm-cache-v2.5 scripts/serve-hu
 `scripts/serve-huihui.sh` is `scripts/serve-v2.5.sh` with three settings for this checkpoint: its KV-scale sidecar
 (`scales/qsa_kv_scales_swift_huihui_dense.json`), its own served names (`flash-next-swift-huihui`,
 `flash-next-abliterated`) and `xhigh` as the default reasoning effort; it refuses a directory that is not this
-checkpoint. Its weights carry their own licences
-([License](#license)); details in [Swift1.5-Huihui checkpoint profile](docs/reference.md#swift15-huihui-checkpoint-profile).
+checkpoint. Requests name it `flash-next-swift-huihui` (for example `"model": "flash-next-swift-huihui"` in the
+[Talk to it](#talk-to-it) calls); keeping both checkpoints on disk needs about 230 GiB for weights. Its weights carry
+their own licences ([License](#license)); details in
+[Swift1.5-Huihui checkpoint profile](docs/reference.md#swift15-huihui-checkpoint-profile).
 
 ## What's new in v2.5.3
 

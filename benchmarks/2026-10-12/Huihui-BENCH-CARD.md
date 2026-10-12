@@ -31,7 +31,7 @@ served by `scripts/serve-huihui.sh`. The engine's own card for v2.5.2 is [`BENCH
 | tool call, reasoning and image smoke tests | PASS | not run |
 | MTP mean acceptance length (engine counter, whole run) | 2.63 | 2.70 |
 | XSTest safe prompts: refused, marker-scored | 1 / 246 (0.4 %) | 9 / 249 (3.6 %) |
-| StrongREJECT harmful prompts (313): refused | **29 / 278 finished (10.4 %), judged; 35 cut off** | 302 / 312 (96.8 %), marker-scored |
+| StrongREJECT harmful prompts (313): refused | **29 / 278 finished (10.4 %), judged; 35 cut off** | 302 / 312 (96.8 %; 1 cut off), marker-scored |
 | engine errors | 0 | 0 |
 
 - **Agent turns.** Six agents with 30K–130K-token contexts, three turns each, served sampling at `xhigh` and up to
