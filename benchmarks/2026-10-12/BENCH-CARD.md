@@ -61,3 +61,10 @@ the values are the window's last sample (the first sample differs by at most 2 W
 - The v2.5.2 ladder boot logged the API server's `EngineDeadError` during the scripted drained shutdown: after every
   request had finished, after the guard's final drain reported no hits, and after all four workers had exited cleanly.
   The same shutdown message was seen on one v2.5.1 boot for the v2.5.1 card; this run's v2.5.1 boot did not log it.
+
+## 4. One user on Hermes (the summary image's cache-hit figure)
+
+Two coding sessions with the [hermes](https://github.com/NousResearch/hermes-agent) agent on v2.5.2, served through the
+package launcher with defaults (a scripted read-and-edit workload, 88 requests over 18 minutes): 97.4 % and 95.5 % of
+prompt tokens came from the prefix cache, by Hermes' own counters (cached / (cached + uncached) prompt tokens). One user,
+not a controlled benchmark; the 8-conversation follow-up figure (92.5 %) is the v2.5.1 card's.

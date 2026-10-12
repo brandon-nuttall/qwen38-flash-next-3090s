@@ -63,7 +63,7 @@ cannot hash itself.
 | `benchmarks/2026-10-05/flashnext-v2.5.0-ctx-pp-tg-itl_OLD.png` | `ee90d9efdfc99750a380c5f36c8b2daeaa4bbcfad5872c69d4f28bbb200451d1` |
 | `benchmarks/2026-10-06/BENCH-CARD.md` | `cd187ea6fd4f46e5c8c0e9cd384a10806bf79a4a9bf5f2003145db89d941b7da` |
 | `benchmarks/2026-10-06/flashnext-v2.5.1-ctx-pp-tg-itl.png` | `4832f93602fc2c16638901fa11aede507009d6299e0c7b920c2d679944b45061` |
-| `benchmarks/2026-10-12/BENCH-CARD.md` | `2822472e6bb6c166c76046b8f6e27b0f37dc75674dbed3b59ea3304b4956f5cb` |
+| `benchmarks/2026-10-12/BENCH-CARD.md` | `36b545435842b6cd58b324cee40a2678a5f915b2cf464855d8fe135ff1b2ed61` |
 | `docs/images/flashnext-v2.5-layout.png` | `99b55769952494bd852b1c19248353a44d30893399a17dbcb0674114f4b5ccbe` |
 | `docs/images/flashnext-v2.5-summary.png` | `ec9b0474c61f21263807cb55925fc5cb4c63593f844d9de0d80ff2dc764aff6d` |
 | `release/v2.5/v2.5.2-combined.diff` | `bdddf25d5289a38695ace612b1e3d02caccea039073ea8473bbfb6b0c9def98b` |
