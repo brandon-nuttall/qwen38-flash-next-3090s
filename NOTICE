@@ -248,6 +248,15 @@ Model weights are not part of this distribution. Qwen3.8-Flash-Next and its quan
 (Intel AutoRound experts, RadixArk FP8 PLE table, our in-place packing) carry the Qwen Community License 1.0
 (LICENSE.qwen-community-1.0). Our scripts, patches, calibration tooling and harness are Apache-2.0.
 
+Second checkpoint: this repository also serves halt95/Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin
+(scripts/serve-huihui.sh), UkisAI's Swift 1.5 with huihui-ai's abliteration
+(https://huggingface.co/huihui-ai/Huihui-Qwen3.8-Flash-Next-abliterated; method from
+https://github.com/Sumandora/remove-refusals-with-transformers) transplanted onto it. Its weights and its KV-scale
+sidecar (scales/qsa_kv_scales_swift_huihui_dense.json) are derivatives of Swift 1.5 (Swift Open License v1.0,
+licenses/Huihui-LICENSE) and of Qwen3.8-Flash-Next (Qwen Community License 1.0). It is an independent derivative, not
+made, reviewed or endorsed by UkisAI, huihui-ai or Qwen. Provenance, upstream notices and the changes made:
+licenses/Huihui-NOTICE.
+
 Credits: peakcrosser7 (Flash-Next model support and the original PLE offload, PR #53899, release/qwen38next_offload;
 our host-mapped PLE pull transport builds on it),
 Intel (AutoRound), RadixArk (FP8 PLE table), aikitoria (P2P driver for consumer Ampere), DominikBucko (MTP INT4

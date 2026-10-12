@@ -1,7 +1,8 @@
 # Qwen3.8-Flash-Next on 4× RTX 3090
 
 **Serve Qwen3.8-Flash-Next at its full 262K context on four RTX 3090s, with vision, tool calls and fast agent
-follow-ups, behind one OpenAI-compatible endpoint.**
+follow-ups, behind one OpenAI-compatible endpoint. A second checkpoint, Swift1.5-Huihui (abliterated), runs on the same
+engine.**
 
 [![GPU](https://img.shields.io/badge/GPU-4x_RTX_3090-76B900?logo=nvidia&logoColor=white)](docs/reference.md#hardware)
 [![Context](https://img.shields.io/badge/context-262K_per_request-ffb000)](docs/reference.md#the-kv-budget)
@@ -9,6 +10,7 @@ follow-ups, behind one OpenAI-compatible endpoint.**
 [![Shape](https://img.shields.io/badge/TP2_x_PP2-%2B_EP-6f42c1)](docs/reference.md#stack)
 [![MTP](https://img.shields.io/badge/MTP-K%3D3-6f42c1)](docs/reference.md#stack)
 [![Checkpoint](https://img.shields.io/badge/%F0%9F%A4%97_checkpoint-Qwen3.8--Flash--Next--W4A16--Merlin-ffd21e)](https://huggingface.co/halt95/Qwen3.8-Flash-Next-W4A16-Merlin)
+[![Swift1.5-Huihui](https://img.shields.io/badge/%F0%9F%A4%97_checkpoint-Swift1.5--Huihui--Qwen3.8--Flash--Next--W4A16--Merlin-ffd21e)](https://huggingface.co/halt95/Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin)
 
 ![Flash-Next v2.5.2 at a glance](docs/images/flashnext-v2.5-summary.png)
 
@@ -16,7 +18,7 @@ This repository is the serving engine for
 [halt95/Qwen3.8-Flash-Next-W4A16-Merlin](https://huggingface.co/halt95/Qwen3.8-Flash-Next-W4A16-Merlin), a 4-bit
 build of Qwen3.8-Flash-Next (125B MoE): the public vLLM `v0.30.0` tag plus 98 commits, hash-checked build and serve
 scripts, and container and Proxmox LXC recipes. The whole KV cache stays in VRAM. It is the daily model behind a
-[hermes](https://github.com/NousResearch/hermes-agent) agent. The current release is **v2.5.2** (Merlin engine v2.5.2: v2.5.1 plus the bounds-guard reader fix, so idle cards can drop to P8; see [What's new](#whats-new-in-v252)).
+[hermes](https://github.com/NousResearch/hermes-agent) agent. The current release is **v2.5.3**: the Merlin engine v2.5.2 unchanged (v2.5.1 plus the bounds-guard reader fix, so idle cards can drop to P8) and a second checkpoint, Swift1.5-Huihui; see [What's new](#whats-new-in-v253).
 
 ## Why use it
 
@@ -52,7 +54,7 @@ Where to get Python 3.13 on Debian 12 and Ubuntu, and the rest of the detail:
 ## Quick start
 
 ```bash
-git clone --branch v2.5.2 https://github.com/halt95/qwen38-flash-next-3090s.git && cd qwen38-flash-next-3090s
+git clone --branch v2.5.3 https://github.com/halt95/qwen38-flash-next-3090s.git && cd qwen38-flash-next-3090s
 R=https://github.com/halt95/qwen38-flash-next-3090s/releases/download
 curl -fLO "$R/v2.5.2/v2.5.2-from-upstream-v0.30.0.bundle.gz" && gunzip v2.5.2-from-upstream-v0.30.0.bundle.gz
 curl -fLO "$R/v2.2.0/build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz"   # compiled ops, unchanged since v2.2.0
@@ -108,6 +110,46 @@ print(reply.choices[0].message.content)
 - Tools use the standard `tools` field; images go in `image_url` content parts, up to 42 per request.
 - If a reply comes back empty with `finish_reason: "stop"` and zero tokens, retry once.
 
+## Second checkpoint: Swift1.5-Huihui (abliterated)
+
+[halt95/Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin](https://huggingface.co/halt95/Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin) is the
+[Swift 1.5](https://huggingface.co/halt95/Swift1.5-Qwen3.8-Flash-Next-W4A16-Merlin) W4A16 checkpoint with
+[huihui-ai's abliteration](https://huggingface.co/huihui-ai/Huihui-Qwen3.8-Flash-Next-abliterated) transplanted onto its
+96 dense output projections; the routed experts are Swift 1.5's, unchanged. Same engine, shapes, KV pool and weight size
+as Swift 1.5.
+
+> **Treat it as a model that does not refuse.** Refusal behaviour was removed upstream and its outputs are not
+> safety-filtered: on StrongREJECT it refused 29 of the 278 harmful prompts it finished answering (10.4 %, one judged
+> run; 35 more were cut off and not judged), where Swift 1.5 refused 96.8 % (keyword count, not the same scale). Don't
+> put it in front of anyone who expects a filtered model. It is an independent derivative, not made, reviewed or
+> endorsed by UkisAI, huihui-ai or Qwen.
+
+Quality gate against Swift 1.5 in the same run (on v2.5.1): GSM8K (1,319) 96.29 % vs 95.98 %, agent-turn tokens 0.86×
+(95 % CI includes parity), structured output 16 / 16, the 258K needle found. Speed on v2.5.2 with MTP: 167 / 170 / 179 /
+175 tok/s decode at 4K / 32K / 131K / 261K ([bench card](benchmarks/2026-10-12/Huihui-BENCH-CARD.md)). From the
+repository root after the [Quick start](#quick-start) build:
+
+```bash
+hf download halt95/Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin --revision 42afb01fca3e696f378a1ef257596731e00e829f \
+  --local-dir ~/models/Swift1.5-Huihui
+(cd ~/models/Swift1.5-Huihui && sha256sum -c --quiet "$OLDPWD/release/checkpoint-huihui.sha256") && echo checkpoint OK
+TREE=./vllm-v2.5 VENV=./venv-v2.5 CACHE_ROOT=./.vllm-cache-v2.5 scripts/serve-huihui.sh ~/models/Swift1.5-Huihui
+```
+
+`scripts/serve-huihui.sh` is `scripts/serve-v2.5.sh` with three settings for this checkpoint: its KV-scale sidecar
+(`scales/qsa_kv_scales_swift_huihui_dense.json`), its own served names (`flash-next-swift-huihui`,
+`flash-next-abliterated`) and `xhigh` as the default reasoning effort; it refuses a directory that is not this
+checkpoint. Its weights carry their own licences
+([License](#license)); details in [Swift1.5-Huihui checkpoint profile](docs/reference.md#swift15-huihui-checkpoint-profile).
+
+## What's new in v2.5.3
+
+- A second checkpoint, [Swift1.5-Huihui (abliterated)](#second-checkpoint-swift15-huihui-abliterated), with its own
+  launcher `scripts/serve-huihui.sh`, KV-scale sidecar, checksum list, licences and
+  [bench card](benchmarks/2026-10-12/Huihui-BENCH-CARD.md).
+- The engine is unchanged: Merlin engine v2.5.2, the same bundle and compiled ops (the downloads in the Quick start
+  stay the v2.5.2 and v2.2.0 release assets). Details: [CHANGELOG.md](CHANGELOG.md#v253).
+
 ## What's new in v2.5.2
 
 - The bounds-guard reader (on by default, `GUARD=warn`) parks once the engine drains, so idle cards can drop to P8
@@ -135,7 +177,7 @@ Full patch notes, with every measurement: [CHANGELOG.md](CHANGELOG.md).
 - [CHANGELOG.md](CHANGELOG.md): release notes, newest first.
 - [docs/reference.md](docs/reference.md): what the build and serve scripts do, environment variables, container and
   LXC detail, troubleshooting, how the model sits on the four cards, capacity, known behaviours and how it is measured.
-- Bench cards: [v2.5.2](benchmarks/2026-10-12/BENCH-CARD.md), [v2.5.1](benchmarks/2026-10-06/BENCH-CARD.md),
+- Bench cards: [v2.5.2](benchmarks/2026-10-12/BENCH-CARD.md), [Swift1.5-Huihui](benchmarks/2026-10-12/Huihui-BENCH-CARD.md), [v2.5.1](benchmarks/2026-10-06/BENCH-CARD.md),
   [v2.5.0 (not published)](benchmarks/2026-10-05/BENCH-CARD_OLD.md), [v2.2.0](benchmarks/2026-09-24/BENCH-CARD.md),
   [v2 gate](benchmarks/2026-09-17/BENCH-CARD.md), v1 ([2026-09-08](benchmarks/2026-09-08/BENCH-CARD.md),
   [2026-09-05](benchmarks/2026-09-05/BENCH-CARD.md)).
@@ -151,6 +193,8 @@ Full patch notes, with every measurement: [CHANGELOG.md](CHANGELOG.md).
   conversation.
 - Greedy (T=0) output repeats within one compile cache, not across fresh compiles.
 - Tested on one setup: 4× RTX 3090 at 220 W, PCIe Gen4 x16, with peer-to-peer.
+- Swift1.5-Huihui: token cost measured at `xhigh` only, and its quality gate ran with Swift 1.5's earlier
+  `tokenizer.json`; it now ships Qwen's upstream file (smoke-tested, not re-gated).
 
 The full list, with causes and mitigations: [Known behaviours](docs/reference.md#known-behaviours-of-the-qwen38-flash-next-architecture-in-vllm).
 
@@ -161,7 +205,10 @@ Qwen ([Qwen3.8-Flash-Next](https://huggingface.co/Qwen/Qwen3.8-Flash-Next)), Int
 ([FP8 PLE table](https://huggingface.co/RadixArk/Qwen3.8-Flash-Next-NVFP4)), DominikBucko
 ([MTP INT4 packing recipe](https://github.com/DominikBucko/qwen38-flash-next-2x3090)), the
 [`peakcrosser7` Flash-Next branch](https://github.com/peakcrosser7/vllm/commits/release/qwen38next_offload) behind vLLM
-PRs #53896 and #53899, aikitoria's open-kernel-module patch (P2P on consumer Ampere), and [CoolShades](https://github.com/CoolShades) (idle-power
+PRs #53896 and #53899, aikitoria's open-kernel-module patch (P2P on consumer Ampere), UkisAI
+([Swift 1.5](https://huggingface.co/ukisai/Swift1.5-Qwen3.8-Flash-Next)) and huihui-ai
+([the abliteration](https://huggingface.co/huihui-ai/Huihui-Qwen3.8-Flash-Next-abliterated), method from
+[remove-refusals-with-transformers](https://github.com/Sumandora/remove-refusals-with-transformers)) for the second checkpoint, and [CoolShades](https://github.com/CoolShades) (idle-power
 report, [issue #2](https://github.com/halt95/qwen38-flash-next-3090s/issues/2), and [PR #3](https://github.com/halt95/qwen38-flash-next-3090s/pull/3), behind the guard fix in v2.5.2). Upstream vLLM fixes in this
 tree are credited by PR number in the commit messages and by author in `NOTICE` and in
 [the full credit list](docs/reference.md#credit), which also names independent work on the same hardware class.
@@ -172,3 +219,9 @@ Code in this repository (patches, scripts, calibration tooling, harness): Apache
 fork is Apache-2.0 with the modified files listed in `NOTICE`. Model weights, including the quantised
 derivatives credited above, carry the Qwen Community License 1.0 (`LICENSE.qwen-community-1.0`); they are not
 part of this repository.
+
+**Swift1.5-Huihui.** The second checkpoint's weights are a derivative of UkisAI's Swift 1.5 and carry the Swift Open
+License v1.0 (`licenses/Huihui-LICENSE`) as well as the Qwen Community License 1.0; its KV-scale sidecar
+`scales/qsa_kv_scales_swift_huihui_dense.json` is model-derived data under the same licences, not Apache-2.0. The Swift
+Open License does not cover commercial use by an entity with US$1,000,000 or more in yearly gross revenue (with its
+affiliates); UkisAI offers a separate licence (§§1 and 5). Provenance and the upstream notices: `licenses/Huihui-NOTICE`.

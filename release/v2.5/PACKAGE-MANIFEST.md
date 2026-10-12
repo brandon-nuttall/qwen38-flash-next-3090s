@@ -25,14 +25,17 @@ Combined diff: `release/v2.5/v2.5.2-combined.diff` = the diff from `v0.30.0` to 
 (with `core.autocrlf=false`) replays them to the same tree. Environment pins: 196, identical to v2.2.0's except
 `transformers==5.18.0` (was 5.17.0).
 
-Files in this tree for v2.5.2 (sha256 of the committed, LF-normalised content — `git show <commit>:<path> | sha256sum`;
+Files in this tree for v2.5.2, and for v2.5.3 (the same engine plus the Swift1.5-Huihui checkpoint profile: the
+`scripts/serve-huihui.sh`, `scales/…huihui…`, `release/checkpoint-huihui.sha256`, `licenses/Huihui-*` and
+`benchmarks/2026-10-12/Huihui-*` rows, and updated `README.md`, `NOTICE`, `CHANGELOG.md`, `docs/reference.md` and
+`lxc/provision.sh`) (sha256 of the committed, LF-normalised content — `git show <commit>:<path> | sha256sum`;
 a CRLF checkout on Windows will hash differently). `release/v2.5/SHA256SUMS.v2.5.2` is hashed below it; this manifest
 cannot hash itself.
 
 | file | sha256 |
 |---|---|
-| `README.md` | `d492af1da0d737f7299cba8373c64b30f9e0c65d4ad788553b9a605b79f2318d` |
-| `NOTICE` | `b5c2a57a51f793671d0a72107bc0759647873d3e19a8fa0a8ffed265feba9156` |
+| `README.md` | `001c445c8c9f0d62cec9207aa821b7eb83a3c973c99fead470d8b801c8fb5060` |
+| `NOTICE` | `46718d40dfe00106c0d095947f23b4e9570db77ffbe175c85152921b6a860e1e` |
 | `LICENSE` | `cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30` |
 | `LICENSE.qwen-community-1.0` | `465dcafcac7d3542a0cfc150fc550e0b7228c22ee68c8f1f81db942e7c658cb4` |
 | `upstream/PIN-v2.5` | `6babc4461fffbf9b01628a9587a33cfc3b27eb71b5fc636de0ff2c933aa179f3` |
@@ -41,15 +44,15 @@ cannot hash itself.
 | `scripts/topo_select.py` | `5ec2af2f8fdf179e2b7ab2ec8d29a0633e5570fa780c5c51c5bb11b159329ffc` |
 | `docs/topology-selector.md` | `b67592ffa0dad04774413ee610acb3a51d7c71741235690ffd7d32dd428965f5` |
 | `docs/history.md` | `4c2b83a3932a5693432f051ae6700bbf7dcb5133814a6de1fb3d4e037919c333` |
-| `CHANGELOG.md` | `5a99099b56d6c334c32bd26fafcb550d4578dafc03966663ee7a71fcb593ef0c` |
-| `docs/reference.md` | `a87d14e566cdfdca46d8a334436040709e741a46bb719c279a5cadfa0b884dc3` |
+| `CHANGELOG.md` | `8902488296b8f87dca2360bd5a2fc338ad8e46b518e50513a9b1ea6b4bf19de0` |
+| `docs/reference.md` | `83dd4fd0b73622122017b0a5eea12031f59e359741b6d2a1055d9ff34f50ac3e` |
 | `docs/images/flashnext-v2.2-layout.png` | `f76b34f6710c9ab58bce62dbcede8c1cb63e31246060e989369405cd8a6503c3` |
 | `docs/images/flashnext-nvlink-pairing.png` | `f0e5c901d853ec2396db29082d6b2d6edaeeac20dd6463e351c7bfb4e9cd13fc` |
 | `Dockerfile` | `d79a423c2e1263526ebe369059003c7733f1a8e0ab0d664824933f109d399551` |
 | `docker-compose.yml` | `aebc361814fc27a5a754dee98042d546ac4d16041f330ed2b7aba5816cff552f` |
 | `scripts/docker-entrypoint.sh` | `deaee5fc288fb548fbad2c39cc10ec1f6009dc6785ae9b1f96650ef86b04b17c` |
 | `lxc/pve-create.sh` | `41cd487badaebf99a5de2d925f99f00399029f2837b654b6ba3c433b294a882d` |
-| `lxc/provision.sh` | `8b50dda9102c1934211856458c767838b2633df414525dd1c7fb941e70a21f36` |
+| `lxc/provision.sh` | `20f35d6595c22b9d9d9e07e7488c2e71617bb67398366fa0b1275e0c81b5c6c4` |
 | `lxc/nvidia-prestart.sh` | `9576cce20a6bdb1ba517f4b2473077858e346a1223d8b5f15ea7e03cf19de690` |
 | `lxc/flash-next.service` | `a306b9e3760945dad47096be81173352f5dcb8ba7c9aea5615435b85397003e9` |
 | `.dockerignore` | `67779c162e163c24be2f1e41c9c29c980ca1fc013090f5cdf063921d3cd1df71` |
@@ -67,6 +70,13 @@ cannot hash itself.
 | `docs/images/flashnext-v2.5-layout.png` | `99b55769952494bd852b1c19248353a44d30893399a17dbcb0674114f4b5ccbe` |
 | `docs/images/flashnext-v2.5-summary.png` | `ec9b0474c61f21263807cb55925fc5cb4c63593f844d9de0d80ff2dc764aff6d` |
 | `release/v2.5/v2.5.2-combined.diff` | `bdddf25d5289a38695ace612b1e3d02caccea039073ea8473bbfb6b0c9def98b` |
+| `scripts/serve-huihui.sh` | `6ebf3122ffcceacbe94c5a76d87a5773a62b215fef7bd936b16a23d383a0d261` |
+| `scales/qsa_kv_scales_swift_huihui_dense.json` | `9aa3a6a5b60e08ad9b547b8b9d29219024a8d66036be0e76498b798bedd302f4` |
+| `release/checkpoint-huihui.sha256` | `1f4781dc33500b9517ff856e4c4caa9657892eaff94c101d99c3b117911442d1` |
+| `licenses/Huihui-LICENSE` | `7a3af3e6b43fcb7c486ea8167252a36a9532dcbdf02d1704a749881872ec551c` |
+| `licenses/Huihui-NOTICE` | `f34014cf193ddf28bb5a7a046dc1f6d53958565009fde591177fb1acd7bf26ab` |
+| `benchmarks/2026-10-12/Huihui-BENCH-CARD.md` | `0d676b4627f2530e9bf65974c5f11dd736cbfa333dbc18b6cd9bb65c19c260fc` |
+| `benchmarks/2026-10-12/huihui-decode-v2.5.2.png` | `8d5b56cb7cb12bc8772465e4629ed9a9bb55b13359f53acf08e5349726096451` |
 | `release/v2.5/SHA256SUMS.v2.5.2` | `bc3b1caf2b56f56cdfb5858ed3ef392c5680ea09e573366ef68ba48dfb33040c` |
 
 The v2.2.0, v2.0.1 and v1 files stay in the tree unchanged (their manifests are `release/v2.2/PACKAGE-MANIFEST.md` and

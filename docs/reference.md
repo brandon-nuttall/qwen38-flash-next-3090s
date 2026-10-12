@@ -13,7 +13,8 @@ how the release is measured. Release notes are in [CHANGELOG.md](../CHANGELOG.md
 - [Multi-GPU hosts and topology (opt-in)](#multi-gpu-hosts-and-topology-opt-in), [Running notes](#running-notes)
 - [How it works](#how-it-works): [Hardware](#hardware), [The KV budget](#the-kv-budget),
   [Host-resident embeddings](#host-resident-embeddings-inside-the-cudagraph), [Stack](#stack),
-  [Checkpoint](#checkpoint), [Serving an agent](#serving-an-agent)
+  [Checkpoint](#checkpoint), [Swift1.5-Huihui checkpoint profile](#swift15-huihui-checkpoint-profile),
+  [Serving an agent](#serving-an-agent)
 - [Benchmarks](#benchmarks) (what each card measures, the evidence boundary, the quality metric)
 - [Known behaviours](#known-behaviours-of-the-qwen38-flash-next-architecture-in-vllm)
 - [What ships next](#what-ships-next), [Credit](#credit)
@@ -54,7 +55,7 @@ something unrelated, typically `AttributeError: '_ModelInfo' object has no attri
 ```bash
 # v2.5.2. Release assets: v2.5.2-from-upstream-v0.30.0.bundle.gz (required),
 # build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz (unchanged compiled ops; or BUILD_OWN=1 to compile the two own extensions)
-git clone --branch v2.5.2 https://github.com/halt95/qwen38-flash-next-3090s.git && cd qwen38-flash-next-3090s
+git clone --branch v2.5.3 https://github.com/halt95/qwen38-flash-next-3090s.git && cd qwen38-flash-next-3090s
 R=https://github.com/halt95/qwen38-flash-next-3090s/releases/download/v2.5.2
 curl -fLO "$R/v2.5.2-from-upstream-v0.30.0.bundle.gz"
 curl -fLO "https://github.com/halt95/qwen38-flash-next-3090s/releases/download/v2.2.0/build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz"      # 241 MB
@@ -126,7 +127,7 @@ bare-metal route ([Build and serve](#build-and-serve)) for a verified install. H
   on disk (115 GiB).
 
 ```bash
-git clone --branch v2.5.2 https://github.com/halt95/qwen38-flash-next-3090s.git && cd qwen38-flash-next-3090s
+git clone --branch v2.5.3 https://github.com/halt95/qwen38-flash-next-3090s.git && cd qwen38-flash-next-3090s
 docker build -t qwen38-flash-next-3090s:v2.5.2 .      # fetches the v2.5.2 bundle + v2.2.0 build-artifacts asset; installs the first-serve toolchain
 hf download halt95/Qwen3.8-Flash-Next-W4A16-Merlin --local-dir /path/to/Qwen3.8-Flash-Next-W4A16-Merlin   # 115 GiB; outside the clone (see below)
 MODEL_DIR=/path/to/Qwen3.8-Flash-Next-W4A16-Merlin docker compose up -d
@@ -169,7 +170,7 @@ attach it with `pct set <CTID> --hookscript local:snippets/nvidia-prestart.sh` (
 Snippets content type enabled).
 
 ```bash
-git clone --branch v2.5.2 https://github.com/halt95/qwen38-flash-next-3090s.git && cd qwen38-flash-next-3090s   # on the Proxmox host
+git clone --branch v2.5.3 https://github.com/halt95/qwen38-flash-next-3090s.git && cd qwen38-flash-next-3090s   # on the Proxmox host
 hf download halt95/Qwen3.8-Flash-Next-W4A16-Merlin --local-dir /path/to/models/Qwen3.8-Flash-Next-W4A16-Merlin   # 115 GiB; the CT sees it at /models/Qwen3.8-Flash-Next-W4A16-Merlin
 CTID=201 MODELS=/path/to/models STORAGE=local-lvm lxc/pve-create.sh   # STORAGE: your rootfs storage (pvesm status), e.g. local-zfs
 install -m 0755 lxc/nvidia-prestart.sh /var/lib/vz/snippets/nvidia-prestart.sh && pct set 201 --hookscript local:snippets/nvidia-prestart.sh
@@ -377,7 +378,50 @@ Shard hashes are not
 published here; the Hugging Face checkpoint carries them, and the v2 delta is the one config key above.
 
 The KV scale sidecar is **the file v1 shipped**, `scales/qsa_kv_scales_262k.json` (calibrated on the reference host, margin
-1.10, sha256 `5cbe6ae8…`); the reference host serves the same bytes under a different file name. One file ships.
+1.10, sha256 `5cbe6ae8…`); the reference host serves the same bytes under a different file name. One file ships for this checkpoint; the
+second checkpoint below has its own.
+
+### Swift1.5-Huihui checkpoint profile
+
+[halt95/Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin](https://huggingface.co/halt95/Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin)
+runs on this engine unchanged. It is the Swift 1.5 W4A16 checkpoint (UkisAI's fine-tune, in this release's format) with
+huihui-ai's abliteration carried onto 96 dense modules: `self_attn.o_proj` (12 layers) and
+`mlp.shared_expert.down_proj` (48 layers) in BF16, and `linear_attn.out_proj` (36 GDN layers) re-packed to INT8 per
+channel; 132 stored tensors, listed in the checkpoint's `EDITED_TENSORS.txt`. The routed experts, the MTP draft head, the
+PLE table, the tokenizer (Qwen's upstream `tokenizer.json`, as the Swift 1.5 W4A16 checkpoint ships it since 2026-10-06)
+and every configuration file are Swift 1.5's, byte for byte. Treat it as a model that does not refuse: its outputs are
+not filtered.
+
+| | Swift1.5-Huihui |
+|---|---|
+| serve | `scripts/serve-huihui.sh <checkpoint>`: `serve-v2.5.sh` with `SCALES`, `MODEL_NAME` and an `xhigh` default set; every other knob passes through; a directory without `EDITED_TENSORS.txt` is refused |
+| served names | `flash-next-swift-huihui`, `flash-next-abliterated` (a `MODEL_NAME` you set wins) |
+| KV-scale sidecar | `scales/qsa_kv_scales_swift_huihui_dense.json`, calibrated on this checkpoint (sha256 `9aa3a6a5…`), the same bytes as the checkpoint's `qsa_kv_scales_swift_huihui_dense.json` |
+| checkpoint check | `release/checkpoint-huihui.sha256`: the 38 checkpoint files; run `sha256sum -c` inside the download |
+| footprint | as Swift 1.5: 924,993-token KV pool, 17.44 / 16.96 GiB of weights per card on the two pipeline stages |
+| quality gate | ran on v2.5.1 with Swift 1.5's earlier `tokenizer.json` (`06b95093…`); vocabulary and merges are the same as the shipped file, only text with combining marks splits differently |
+| licences | Swift Open License v1.0 (`licenses/Huihui-LICENSE`; no commercial use by entities with US$1,000,000+ yearly revenue without UkisAI's separate licence) and Qwen Community License 1.0; provenance in `licenses/Huihui-NOTICE` |
+| measurements | [`benchmarks/2026-10-12/Huihui-BENCH-CARD.md`](../benchmarks/2026-10-12/Huihui-BENCH-CARD.md) |
+
+The container and the Proxmox LXC unit start `serve-v2.5.sh` directly, so they need this checkpoint's three settings
+by hand (neither route was run with this checkpoint):
+
+- **Container.** Mount the Swift1.5-Huihui directory where the image expects the checkpoint (`MODEL_DIR=` for
+  compose), set `SCALES: /opt/flash-next/scales/qsa_kv_scales_swift_huihui_dense.json` and
+  `MODEL_NAME: "flash-next-swift-huihui flash-next-abliterated"` under `environment:`, and pass the effort after the
+  checkpoint path, which the entrypoint forwards to vLLM:
+  `command: ["/models/Qwen3.8-Flash-Next-W4A16-Merlin", "--default-chat-template-kwargs", "{\"enable_thinking\": true, \"reasoning_effort\": \"xhigh\"}"]`.
+- **Proxmox LXC.** Run `lxc/provision.sh` with `CKPT=/models/Swift1.5-Huihui` (or set `CKPT=` in
+  `/etc/default/flash-next`), then point the unit at the wrapper with `systemctl edit flash-next`:
+
+  ```ini
+  [Service]
+  ExecStart=
+  ExecStart=/bin/bash -c 'exec bash /opt/flash-next/scripts/serve-huihui.sh "$${CKPT}"'
+  ```
+
+  and `systemctl restart flash-next`. Leave `MODEL_NAME` and `SCALES` unset in `/etc/default/flash-next` so the
+  wrapper's defaults apply.
 
 ### Serving an agent
 

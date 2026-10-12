@@ -4,6 +4,24 @@ Release notes, newest first. To install and run the current release, see the [RE
 (scripts, environment variables, capacity, known behaviours, measurement method) is in
 [docs/reference.md](docs/reference.md).
 
+## v2.5.3
+
+Release, 2026-10-12: a second checkpoint for this engine. **No engine change**: Merlin engine v2.5.2, the same bundle
+(`v2.5.2-from-upstream-v0.30.0.bundle`, from the v2.5.2 release) and the same compiled ops (the v2.2.0 build-artifacts
+asset).
+
+- **Swift1.5-Huihui (abliterated).**
+[halt95/Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin](https://huggingface.co/halt95/Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin),
+the Swift 1.5 W4A16 checkpoint with huihui-ai's abliteration transplanted onto its 96 dense output projections (routed
+experts unchanged). Treat it as a model that does not refuse: on StrongREJECT it refused 29 of the 278 prompts it
+finished answering (10.4 %, one judged run; 35 cut off). Quality gate against Swift 1.5 in the same run (on v2.5.1):
+GSM8K 96.29 % vs 95.98 %, agent-turn tokens 0.86× (95 % CI includes parity). It ships Qwen's upstream `tokenizer.json`
+(the gate ran with Swift 1.5's earlier file; smoke-tested since). New files:
+`scripts/serve-huihui.sh` (serve-v2.5.sh with this checkpoint's KV-scale sidecar, served names and `xhigh` default),
+`scales/qsa_kv_scales_swift_huihui_dense.json`, `release/checkpoint-huihui.sha256`, `licenses/Huihui-LICENSE` and
+`licenses/Huihui-NOTICE`, and its bench card
+[`benchmarks/2026-10-12/Huihui-BENCH-CARD.md`](benchmarks/2026-10-12/Huihui-BENCH-CARD.md).
+
 ## v2.5.2
 
 Point release, 2026-10-12: **Merlin engine v2.5.2** = the v2.5.1 engine plus one commit, the bounds-guard reader fix.

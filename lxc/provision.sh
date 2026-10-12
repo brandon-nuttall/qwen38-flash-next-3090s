@@ -11,7 +11,7 @@
 # same version works for the userspace side, P2P itself is a host property.
 set -euo pipefail
 REPO_URL="${REPO_URL:-https://github.com/halt95/qwen38-flash-next-3090s.git}"
-REPO_REF="${REPO_REF:-v2.5.2}"
+REPO_REF="${REPO_REF:-v2.5.3}"
 BUNDLE_URL="${BUNDLE_URL:-https://github.com/halt95/qwen38-flash-next-3090s/releases/download/v2.5.2/v2.5.2-from-upstream-v0.30.0.bundle.gz}"
 ARTIFACTS_URL="${ARTIFACTS_URL:-https://github.com/halt95/qwen38-flash-next-3090s/releases/download/v2.2.0/build-artifacts-sm86-py313-cu130-v2.2.0.tar.gz}"
 APP=/opt/flash-next
