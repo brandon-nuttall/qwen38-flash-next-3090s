@@ -1,0 +1,8 @@
+# Files read by Linux tools on the serving host: LF only, whatever the checkout platform.
+* text=auto eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.png binary
+*.pt binary
+*.patch -text

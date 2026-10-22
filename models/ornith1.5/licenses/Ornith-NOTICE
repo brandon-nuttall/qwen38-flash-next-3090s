@@ -1,0 +1,25 @@
+Ornith-1.5-122B-A10B-W4A16-Merlin: notice for the Ornith 1.5 checkpoint
+
+This recipe (models/ornith1.5/serve.sh, models/ornith1.5/checkpoint.sha256) serves the checkpoint
+halt95/Ornith-1.5-122B-A10B-W4A16-Merlin. This file covers that checkpoint; the engine and the rest of the repository
+are covered by NOTICE and LICENSE at the root.
+
+That checkpoint is a quantised derivative of:
+  - Ornith-1.5-122B by ornith-ai (ornith-ai/Ornith-1.5-122B on Hugging Face, revision
+    dfa07bab90e90746ffbfc0b0cba3126eb9265de2). Its model card declares the MIT License (license: mit; "Open weights
+    under the MIT license"). The repository ships no LICENSE file at that revision or later, so LICENSE-MIT next to
+    this file carries the standard MIT text.
+  - Ornith-1.5-122B is a fine-tune of Qwen3.5-122B-A10B by Qwen (Alibaba Cloud), Qwen/Qwen3.5-122B-A10B on Hugging
+    Face, licensed under the Apache License, Version 2.0. The Qwen materials within the checkpoint retain those terms;
+    LICENSE-Apache-2.0-Qwen.txt next to this file is that repository's LICENSE (revision
+    dc4d348443bc740c68e2d77492492c11606384d5).
+It is an independent derivative made by halt95. It is not made, reviewed or endorsed by ornith-ai or by Qwen.
+"Ornith" and "Qwen" are their owners' names, used here only to describe the origin of the weights.
+
+Changes made by halt95 (see config.json's quantization_config in the checkpoint):
+  - routed-expert projections, including the MTP head's routed experts: INT4, symmetric, group size 128;
+  - Gated DeltaNet input and output projections: INT8, symmetric, per output channel;
+  - attention, shared experts, gates, embeddings, lm_head and the vision tower stay BF16;
+  - FP8 KV-cache scales were calibrated and added.
+The model's chat template and generation settings are served unchanged. See models/ornith1.5/README.md for the
+serving recipe.

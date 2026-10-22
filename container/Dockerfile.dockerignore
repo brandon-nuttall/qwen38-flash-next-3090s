@@ -1,0 +1,38 @@
+# Keep engine sources (vllm/, csrc/, rust/, cmake/) and release/patches in the context.
+.git
+**/.git
+.venv*
+venv*
+**/__pycache__
+**/*.pyc
+.vllm-cache*
+build
+dist
+**/*.egg-info
+*.bak-*
+.env
+.env.*
+# Downloaded checkpoints and legacy assets never belong in the image.
+**/*.safetensors
+**/pytorch_model*.bin
+Qwen*
+Swift*
+ThinkingCap*
+checkpoints
+*.bundle
+*.bundle.gz
+build-artifacts-*.tar.gz
+# Generated build products never belong in the context. The tree is
+# verified against SOURCE_REF below, but that check only sees tracked files.
+**/*.so
+**/*.so.*
+**/*.o
+**/*.a
+vllm/_version.py
+vllm/vllm-rs
+rust/target
+**/target/debug
+**/target/release
+.build-products*
+**/.build-products*
+compiled-ops-*

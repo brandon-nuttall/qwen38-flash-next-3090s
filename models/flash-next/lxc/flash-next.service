@@ -1,0 +1,19 @@
+[Unit]
+Description=Flash-Next (Qwen3.8-Flash-Next-W4A16-Merlin, 925K KV pool on 4x RTX 3090)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/default/flash-next
+ExecStart=/bin/bash -c 'cd "$${TREE:?set TREE in the service environment file}" && exec bash "$${TREE}/models/flash-next/serve.sh" "$${CKPT:?set CKPT in the service environment file}"'
+# vLLM with MTP + cudagraphs does not always exit on SIGTERM; give the shutdown-timeout 60 a chance, then kill the group
+KillMode=control-group
+TimeoutStopSec=90
+Restart=on-failure
+RestartSec=10
+LimitMEMLOCK=infinity
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target

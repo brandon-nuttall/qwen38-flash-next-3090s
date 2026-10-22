@@ -1,0 +1,49 @@
+# From the repository root:
+# MODEL_DIR=/absolute/path/to/checkpoint docker compose -f container/docker-compose.yml up --build -d
+# unqualified until qualified on hardware
+services:
+  merlin:
+    image: merlin-engine:3.0.0
+    pull_policy: build
+    platform: linux/amd64
+    build:
+      context: ..
+      dockerfile: container/Dockerfile
+      args:
+        MAX_JOBS: "${MAX_JOBS:-4}"
+        TORCH_CUDA_ARCH_LIST: "8.0;8.6;8.9"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    shm_size: 8g
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    ports:
+      - "127.0.0.1:8000:8000"  # loopback only; publish on another address deliberately, with VLLM_API_KEY set
+    environment:
+      HOST: 0.0.0.0
+      PORT: "8000"
+      MERLIN_MODEL: "${MERLIN_MODEL:-flash-next}"
+      CHECKPOINT_DIR: /models/checkpoint
+      IMG_CAP_PX: "8388608"
+      MAX_PIXELS: "8388608"
+      # Launcher settings, forwarded from the host shell or a compose .env file. Unset or empty
+      # means "use the launcher default" (every launcher reads them with ${VAR:-default}).
+      MODEL_NAME: "${MODEL_NAME:-}"   # Flash-Next family served names (space-separated)
+      SERVED: "${SERVED:-}"           # 27B / ThinkingCap served name
+      GPUS: "${GPUS:-}"               # 27B / ThinkingCap devices, e.g. 0,1 (TP2) or 0,1,2,3 (TP4)
+      KV_BYTES: "${KV_BYTES:-}"       # per-GPU KV pin (Swift, Huihui, 27B; Flash-Next sizes its own pool)
+      WARM: "${WARM:-}"               # Flash-Next family warm-up: 1 (default) or 0; use 0 on non-sm_86 exploratory runs
+      # VLLM_API_KEY: "<key>"
+    volumes:
+      - "${MODEL_DIR:?set MODEL_DIR to an absolute checkpoint directory}:/models/checkpoint"
+      - merlin-cache:/cache
+    restart: unless-stopped
+    stop_grace_period: 70s
+volumes:
+  merlin-cache: {}

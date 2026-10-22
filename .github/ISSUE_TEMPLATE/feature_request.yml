@@ -1,0 +1,22 @@
+name: Feature request
+description: Suggest an improvement to Merlin engine.
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report vulnerabilities privately using [SECURITY.md](https://github.com/halt95/merlin-engine/blob/main/SECURITY.md).
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What are you trying to do, and what is missing?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed improvement
+      description: Describe the behavior you want and any alternatives considered.
+    validations:
+      required: true

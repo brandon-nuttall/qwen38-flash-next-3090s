@@ -1,0 +1,6 @@
+# Modified by the Merlin project; see NOTICE.
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/halt95/merlin-engine/blob/main/SECURITY.md
+    about: Follow SECURITY.md to report vulnerabilities privately.

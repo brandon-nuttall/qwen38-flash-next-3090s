@@ -1,0 +1,71 @@
+name: Bug report
+description: Report a reproducible Merlin engine problem.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report vulnerabilities privately using [SECURITY.md](https://github.com/halt95/merlin-engine/blob/main/SECURITY.md).
+        Remove secrets and private prompts from commands and logs.
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Problem and reproduction
+      description: What happened, what did you expect, and how can we reproduce it?
+    validations:
+      required: true
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU model and count
+      placeholder: 4 x NVIDIA RTX 3090
+    validations:
+      required: true
+  - type: input
+    id: driver
+    attributes:
+      label: NVIDIA driver version
+    validations:
+      required: true
+  - type: input
+    id: cuda
+    attributes:
+      label: CUDA version
+      description: Include runtime and toolkit versions if they differ.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Merlin and vLLM versions
+      description: Include the Merlin release or commit and installed vLLM version.
+    validations:
+      required: true
+  - type: input
+    id: recipe
+    attributes:
+      label: Model recipe and launcher
+      description: "Give the models/<recipe>/ directory and launcher path, or describe a custom launch."
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Full launch command
+      description: Include environment variables and all arguments.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Include startup output and the full error or traceback.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: image_size
+    attributes:
+      label: Image size (multimodal only)
+      description: Give each input image's width x height in pixels and any resizing settings.

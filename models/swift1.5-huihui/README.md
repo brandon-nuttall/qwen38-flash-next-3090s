@@ -1,0 +1,90 @@
+# Swift1.5-Huihui · Merlin 3.0.0
+
+The launcher serves Froggeric's fixed Qwen3.8 template,
+[`froggeric-qwen-v22.5.jinja`](../qwen38-27b/templates/froggeric-qwen-v22.5.jinja), the same template as the
+27B recipes. Unlike the checkpoint's own `chat_template.jinja` (vendored in
+[`models/flash-next/templates/`](../flash-next/templates/chat_template.jinja)), it accepts system messages after
+the first turn, so coding agents' per-turn notes stay in place on `/v1/messages` and the prefix cache keeps
+hitting. `CHAT_TEMPLATE=<path>` serves another template; `CHAT_TEMPLATE=` (empty) serves the checkpoint's own.
+
+Recipe version: [3.0.0](VERSION). This is the abliterated Swift 1.5 W4A16 checkpoint, served by the engine at the repository root (currently vLLM 0.32.0 plus Merlin changes). The weights stay on Hugging Face:
+
+[halt95/Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin](https://huggingface.co/halt95/Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin).
+
+## Qualification status
+
+The canonical [serve.sh](serve.sh) is generated from `tools/merlin/profiles/flash-next.json` by `tools/merlin/preflight.py`, using profile `fn-swift1.5-huihui-quad-3090`. It starts this checkout directly. It passed its qualification run on 2026-10-16: boot 398 s, GSM8K-20 20/20, ITL 4K / 32K 18.78 / 18.87 ms, and the Merlin 3.0.0 release bench card on the release wheel (2026-10-20): the Huihui quad is tested on the reference host.
+
+Huihui has its own 2026-10-20 bench card (decode, prefill, residency, 8 MP image, 2-agent, GSM8K-200 and needles, the needle panel from a 2026-10-17 pre-release build; below), and its 8 agents were re-run on the released install (2026-10-21); the remaining heavy results are **inherited from Swift**. Swift at 8 MP (8,388,608 pixels per image) on 4× RTX 3090 / 0.32 measured **stage-0 minimum free memory 902 MiB** on 2026-10-15. Huihui's generated launcher independently passed the 2026-10-16 8 MP gate with 902 MiB minimum free; broader heavy results remain inherited from Swift. See [Swift's qualification status](../swift1.5/README.md#qualification-status).
+
+The 924,993-token KV pool was measured on this generated launcher (2026-10-16). Earlier quality and speed numbers are recorded in the [2026-10-12 bench card](benchmarks/2026-10-12/Huihui-BENCH-CARD.md); those vLLM 0.30 results do not qualify Merlin 3.0.0.
+
+## Merlin 3.0.0 bench card (2026-10-20)
+
+Maintainer measurements on 4× RTX 3090 (220 W, PCIe Gen4 with P2P) with the Merlin 3.0.0 release wheel, one fresh `merlin serve` boot per configuration, 2026-10-20, with the BF16 draft head that 3.0.0 ships; method and every cell in the [bench card](benchmarks/2026-10-20/BENCH-CARD.md). Decode is one stream with thinking on (tok/s after the first streamed token); prefill is one cold request.
+
+| Measurement | Swift1.5-Huihui |
+|---|---|
+| Decode, 4K / 131K / 262K prompt | 187 / 188 / 189 tok/s |
+| Cold prefill, 10K / 100K prompt | 5,706 / 6,097 tok/s |
+| Sessions held at once | 3 × 262K and 6 × 131K, every session resident (re-sent prompts ≥ 99.91 % cached), 0 preemptions |
+| 8 MP image, one and two requests at once | correct; lowest free memory 1,136 MiB on any card |
+| KV pool | 924,993 tokens |
+| Agents at once (8 × 16K conversations), total | 660 tok/s (re-run on the released install, 2026-10-21; the bench-card run did not overlap; 2 agents: 218 tok/s) |
+| GSM8K-200 (5-shot, thinking off) | 198/200 |
+
+## Checkpoint
+
+[halt95/Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin](https://huggingface.co/halt95/Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin) is the
+[Swift 1.5](https://huggingface.co/halt95/Swift1.5-Qwen3.8-Flash-Next-W4A16-Merlin) W4A16 checkpoint (UkisAI's fine-tune, in the Merlin
+format) with [huihui-ai's abliteration](https://huggingface.co/huihui-ai/Huihui-Qwen3.8-Flash-Next-abliterated) carried onto 96 dense modules:
+`self_attn.o_proj` (12 layers) and `mlp.shared_expert.down_proj` (48 layers) in BF16, and `linear_attn.out_proj` (36 GDN layers) re-packed to
+INT8 per channel; 132 stored tensors, listed in the checkpoint's `EDITED_TENSORS.txt`. The routed experts, the MTP draft head, the PLE table, the
+tokenizer (Qwen's upstream `tokenizer.json`, as the Swift 1.5 W4A16 checkpoint ships it since 2026-10-06) and every configuration file are
+Swift 1.5's, byte for byte.
+
+The checkpoint is intended to reduce refusals. The historical [bench card](benchmarks/2026-10-12/Huihui-BENCH-CARD.md) reports the refusal evaluation and its limitations; refusal behaviour has not been re-evaluated here on 0.32.
+
+## Quick start
+
+The generated 0.32 recipe and shared installer are integrated in this Merlin 3.0.0 checkout. Build and install the engine using the repository-wide [release instructions](../../release/README.md). The dependency lock is complete: 222 exact pins with artifact SHA-256 hashes, resolved with uv; a dry-run `--require-hashes` install resolves. From the repository root:
+
+```bash
+venv/bin/hf download halt95/Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin \
+  --revision 736e7fb2e95775693f7cc3c1bf525ef0f566818d --local-dir ./ckpt-swift-huihui
+(cd ckpt-swift-huihui && sha256sum -c ../models/swift1.5-huihui/checkpoint.sha256)
+
+# The generated launcher inherits CUDA_HOME; select the locked venv toolkit.
+export CUDA_HOME="$(venv/bin/python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')/nvidia/cu13"
+export PATH="$CUDA_HOME/bin:$PATH"
+TREE="$PWD" VENV="$PWD/venv" CACHE_ROOT="$PWD/.vllm-cache" \
+  bash models/swift1.5-huihui/serve.sh "$PWD/ckpt-swift-huihui"
+```
+
+Set `VENV` to the environment in which this checkout was installed. Reference host: NVIDIA driver 610.43.02 (reports CUDA 13.3). The release lock selects a matched CUDA 13.0 toolkit (nvcc, crt, nvvm, nvJitLink 13.0.88, cccl 13.0.85, runtime 13.0.96, the pair torch 2.13.0 cu130 ships with); the release wheel is served on it by every recipe (2026-10-20). Other CUDA 13.x drivers (R580 or later) are expected to work through CUDA minor-version compatibility, but are untested. See the [driver requirements](../../release/install-0.32.md). The launcher requires `EDITED_TENSORS.txt` in the checkpoint directory. Requests use `flash-next-swift-huihui` or `flash-next-abliterated`; `MODEL_NAME` overrides those names.
+
+## Launcher defaults
+
+The layout and engine settings follow [Swift](../swift1.5/README.md#launcher-defaults): 4× RTX 3090 with P2P, TP2 × PP2 + EP (25,23), 262,144-token per-request limit, 8 sequences, FP8 E4M3 KV at 4.1e9 bytes per card, 42 images with an 8 MP cap, MTP K=3 and FGPC off. Thinking defaults to `medium` (`xhigh` per request). Keep `REDUCED_DRAFT_VOCAB=0`: the full-vocabulary MTP head is retained (`DRAFT_HEAD` default `bf16`), and `REDUCED_DRAFT_VOCAB=1` is unavailable: no reduced draft table ships or is qualified.
+
+Huihui uses its own [dense-recalibrated scale sidecar](scales/qsa_kv_scales_swift_huihui_dense.json), distinct served names and checkpoint marker. The [checksum list](checkpoint.sha256) covers its 38 checkpoint files. `SCALES` can override the sidecar; other environment defaults are documented in the [Swift reference](../swift1.5/docs/reference.md#build-and-serve). Select the Huihui profile explicitly; automatic hardware selection continues to choose Flash-Next.
+
+## Known limitations
+
+A qualification run validated this generated launcher, and the Merlin 3.0.0 release bench card tested it on the release wheel. Swift's measured 8 MP margin and inherited heavy results do not establish Huihui-specific quality, refusal, cache, MTP or capacity results on this release. Other hardware and no-P2P operation need separate qualification; the Huihui profile is a P2P-on 4 x RTX 3090 row and preflight refuses it on hosts without P2P (see the [hardware matrix](../../docs/merlin/hardware-matrix.md)). The repository-wide [container route](../../container/README.md) and LXC serving with this recipe are untested here.
+
+## Credits
+
+UkisAI ([Swift 1.5](https://huggingface.co/ukisai/Swift1.5-Qwen3.8-Flash-Next)) and huihui-ai
+([the abliteration](https://huggingface.co/huihui-ai/Huihui-Qwen3.8-Flash-Next-abliterated), method from
+[remove-refusals-with-transformers](https://github.com/Sumandora/remove-refusals-with-transformers)) for the weights this checkpoint derives
+from; the rest of the credit list is the [Flash-Next one](../flash-next/README.md#credits).
+
+## License
+
+This checkpoint's weights are a derivative of UkisAI's Swift 1.5 and carry the Swift Open License v1.0
+([`licenses/Huihui-LICENSE`](licenses/Huihui-LICENSE)) as well as the Qwen Community License 1.0; its KV-scale sidecar
+[`scales/qsa_kv_scales_swift_huihui_dense.json`](scales/qsa_kv_scales_swift_huihui_dense.json) is model-derived data under the same licences,
+not Apache-2.0. The Swift Open License does not cover commercial use by an entity with US$1,000,000 or more in yearly gross revenue (with its
+affiliates); UkisAI offers a separate licence (§§1 and 5). Provenance and the upstream notices: [`licenses/Huihui-NOTICE`](licenses/Huihui-NOTICE).
+The launcher in this directory is Apache-2.0 (the repository's [LICENSE](../../LICENSE)).

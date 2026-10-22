@@ -1,0 +1,105 @@
+Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin: notice for the second checkpoint
+Copyright 2026 halt95
+
+This repository serves a second checkpoint, halt95/Swift1.5-Huihui-Qwen3.8-Flash-Next-W4A16-Merlin
+(models/swift1.5-huihui/serve.sh, models/swift1.5-huihui/checkpoint.sha256). This file covers that checkpoint and the files in this
+repository derived from it; the engine and the rest of the repository are covered by NOTICE and LICENSE at the root.
+
+That checkpoint is a Derivative Work of:
+  - Swift-Qwen3.8-Flash-Next by UkisAI (Swift 1.5, ukisai/Swift1.5-Qwen3.8-Flash-Next, revision
+    0bd4fe22431372cdad1979267d3ab45aa7e6150a), under the Swift Open License v1.0 (models/swift1.5-huihui/licenses/Huihui-LICENSE);
+  - Huihui-Qwen3.8-Flash-Next-abliterated by huihui-ai (huihui-ai/Huihui-Qwen3.8-Flash-Next-abliterated, revision
+    298f94632b784e26a7fe576114f82066689d5baa), which that repository licenses under the Qwen Community License 1.0;
+  - Qwen3.8-Flash-Next by Qwen (Qwen/Qwen3.8-Flash-Next), under the Qwen Community License 1.0 (models/swift1.5-huihui/licenses/LICENSE-QWEN).
+It is an independent derivative made by halt95. It is not made, reviewed or endorsed by UkisAI, by huihui-ai or by
+Qwen. "UkisAI", "Swift", "huihui-ai" and "Huihui" are their owners' names, used here only to describe the origin of
+the weights.
+
+Refusal behaviour was removed upstream. huihui-ai's abliteration removes the base model's tendency to refuse; this
+checkpoint carries that edit onto Swift 1.5's weights. Its outputs are not safety-filtered. huihui-ai's model card
+states that its safety filtering "has been significantly reduced", that users are "solely responsible for any
+consequences", and that "huihui.ai bears no responsibility for any consequences arising from its use". The same
+holds for this derivative: halt95 provides it as is (see the licences' disclaimers) and makes no safety claim for it.
+
+The upstream NOTICE of the Swift parent follows unchanged, then UkisAI's notice for redistributors, then credits for
+the other sources in the checkpoint, then the changes made in this derivative.
+
+---- NOTICE of ukisai/Swift1.5-Qwen3.8-Flash-Next (revision 0bd4fe22431372cdad1979267d3ab45aa7e6150a) ----
+Swift-Qwen3.8-Flash-Next
+Copyright 2026 UkisAI
+
+UkisAI's contribution (the "Swift Contribution") is licensed under the
+Swift Open License v1.0. See LICENSE.
+
+This model is a derivative work of Qwen3.8-Flash-Next
+  https://huggingface.co/Qwen/Qwen3.8-Flash-Next
+  Copyright (c) 2026 Qwen
+  Licensed under the Qwen Community License 1.0. See LICENSE-QWEN.
+
+Changes made by UkisAI:
+  - model-*.safetensors: model weights were modified by UkisAI through fine-tuning.
+  - tokenizer.json, tokenizer_config.json: re-serialized from UkisAI's training
+    base. Vocabulary and merges are unchanged; the file format, some metadata
+    fields and the pre-tokenizer pattern differ from the Base Model files.
+  - README.md: replaced. LICENSE (Swift Open License v1.0), NOTICE,
+    benchmarks/ and ukisai-banner.png added.
+  - The Base Model's license text was moved from LICENSE to LICENSE-QWEN.
+  - All other files (config.json, generation_config.json, chat_template.jinja,
+    model.safetensors.index.json, vocab.json, merges.txt,
+    preprocessor_config.json, video_preprocessor_config.json) are unmodified
+    from Qwen3.8-Flash-Next and remain under the Qwen Community License 1.0.
+---- end of upstream NOTICE ----
+(The LICENSE / LICENSE-QWEN names above are UkisAI's own file names on their repository. In this repository the
+Swift Open License v1.0 text is models/swift1.5-huihui/licenses/Huihui-LICENSE and the Qwen Community License 1.0 text is
+models/swift1.5-huihui/licenses/LICENSE-QWEN; LICENSE here is Apache-2.0.)
+
+---- Notice for redistributors, verbatim from the Appendix of the Swift Open License v1.0 ----
+   Copyright 2026 UkisAI. Swift Contribution licensed under the Swift Open
+   License v1.0 (https://huggingface.co/ukisai/Swift-Qwen3.8-Flash-Next/blob/main/LICENSE).
+   Derivative of Qwen3.8-Flash-Next, Copyright (c) 2026 Qwen, Qwen Community License 1.0.
+---- end of Appendix notice ----
+
+Other sources in the served checkpoint:
+  - Abliteration edit: huihui-ai,
+    https://huggingface.co/huihui-ai/Huihui-Qwen3.8-Flash-Next-abliterated (Qwen Community License 1.0; no NOTICE
+    file at that revision). huihui-ai's card credits the method to
+    https://github.com/Sumandora/remove-refusals-with-transformers.
+  - FP8 PLE (n-gram embedding) table: RadixArk,
+    https://huggingface.co/RadixArk/Qwen3.8-Flash-Next-NVFP4 (table only; its card defers to the source model's
+    license terms), taken unchanged from the Swift 1.5 W4A16 checkpoint.
+  - Swift 1.5 W4A16 checkpoint (INT4 routed experts, INT8 GDN pack, INT4 MTP pack, BF16 attention and shared
+    experts, assembly):
+    halt95/Swift1.5-Qwen3.8-Flash-Next-W4A16-Merlin,
+    https://huggingface.co/halt95/Swift1.5-Qwen3.8-Flash-Next-W4A16-Merlin
+    (Swift Open License v1.0 and Qwen Community License 1.0), built on halt95/Qwen3.8-Flash-Next-W4A16-Merlin.
+  - tokenizer.json: Qwen's upstream file from Qwen/Qwen3.8-Flash-Next (sha256
+    0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3, Qwen Community License 1.0), the file the Swift 1.5
+    W4A16 checkpoint has shipped since 2026-10-06; shipped byte-identical.
+  - Serving engine: this repository's Flash-Next engine (a modified vLLM, Apache License 2.0; see NOTICE), unchanged
+    for this checkpoint.
+
+Changes made in this derivative (halt95, 2026). Every file below is modified or added relative to
+halt95/Swift1.5-Qwen3.8-Flash-Next-W4A16-Merlin; the files not listed are byte-identical to that checkpoint's:
+  - model-00001-of-00017.safetensors and model-00003-of-00017.safetensors through
+    model-00015-of-00017.safetensors (14 shards; they hold the edited tensors) and the new EDITED_TENSORS.txt (the
+    names of the 132 edited tensors). model.safetensors.index.json is unchanged: the edited tensors keep their names
+    and shards.
+    96 dense modules were changed by transplanting huihui-ai's abliteration onto
+    Swift 1.5's weights: self_attn.o_proj (12 layers) and mlp.shared_expert.down_proj (48 layers) in BF16, and
+    linear_attn.out_proj (36 GDN layers), re-packed to INT8 per-channel symmetric in the Merlin checkpoint's format
+    (132 stored tensors in all). The edit was recovered from huihui-ai's weights as a rank-1 output-side projection
+    per tensor (edited = (I - alpha r r^T) stock, against Qwen/Qwen3.8-Flash-Next revision
+    de4b8e4d43b917e7706784d8bb445c9af86a3540; every fit within 1.25x the BF16 re-rounding floor) and applied as
+    W' = bf16(W - alpha r r^T W) to Swift 1.5's tensor. Every other tensor, the routed experts included, is
+    byte-identical to the Swift 1.5 W4A16 checkpoint's.
+  - qsa_kv_scales_swift_huihui_dense.json: added to the checkpoint, and shipped in this repository as
+    models/swift1.5-huihui/scales/qsa_kv_scales_swift_huihui_dense.json (the same bytes); static FP8 K/V scales calibrated on this checkpoint.
+    This file is model-derived data, not Apache-2.0: it is subject to the Swift Open License v1.0 (models/swift1.5-huihui/licenses/Huihui-LICENSE)
+    and the Qwen Community License 1.0 (models/swift1.5-huihui/licenses/LICENSE-QWEN), the same licences as the checkpoint it was calibrated on.
+    It replaces the Swift 1.5 checkpoint's qsa_kv_scales_swift.json, which is not shipped.
+  - The routed experts, the MTP draft head, the PLE table, model_extra_tensors.safetensors and every
+    configuration file (config.json, quantization_config.json, generation_config.json, chat_template.jinja,
+    tokenizer_config.json, preprocessor_config.json, processor_config.json) are unchanged.
+  - In this repository, models/swift1.5-huihui/serve.sh, models/swift1.5-huihui/checkpoint.sha256,
+    models/swift1.5-huihui/benchmarks/2026-10-12/Huihui-BENCH-CARD.md and models/swift1.5-huihui/README.md
+    were written for this checkpoint by halt95 (Apache-2.0 like the rest of the repository's own files). models/swift1.5-huihui/licenses/Huihui-LICENSE is an unchanged copy of the Swift Open License v1.0 text.

@@ -1,0 +1,158 @@
+{
+ "schema": 1,
+ "model": "ornith",
+ "labels": {
+  "tested": "tested on the reference host",
+  "untested": "untested / community-validated"
+ },
+ "reference": {
+  "note": "The Ornith 1.5 launcher is the ornith family shape of tools/merlin/launch.py (the argv of the 2026-10-21 qualification runs). Pool and headroom numbers are read from the 2026-10-21 reference-host and no-P2P-host runs, not re-measured here.",
+  "public_release": "none yet (Merlin 3.0.0 checkpoint, publication pending)"
+ },
+ "launch": {
+  "note": "The Ornith family shape of tools/merlin/launch.py. Engine requirement: the Qwen3.5-MoE RecoverSSM, host-embed and uniform-verify support of the Merlin 3.0.0 engine.",
+  "port": 8000,
+  "served": "ornith",
+  "max_model_len": 262144,
+  "toolchain": "cuda_home",
+  "verify_tree": false,
+  "images_per_prompt": 8,
+  "capture_sizes": [
+   1,
+   2,
+   3,
+   4,
+   6,
+   8,
+   12,
+   16,
+   24,
+   32
+  ]
+ },
+ "profiles": [
+  {
+   "id": "ornith-quad-3090",
+   "title": "Ornith 1.5 122B-A10B (W4A16 + INT4 MTP experts) on 4 x RTX 3090 24 GB with P2P (TP2 x PP2 + EP, RecoverSSM)",
+   "status": "tested",
+   "match": {
+    "arch": [
+     "sm_86"
+    ],
+    "cards": 4,
+    "vram_gib": 24,
+    "tested_gpu_names": [
+     "RTX 3090$"
+    ],
+    "p2p": "on"
+   },
+   "launcher": {
+    "path": "models/ornith1.5/serve.sh"
+   },
+   "layout": {
+    "tp": 2,
+    "pp": 2,
+    "ep": true,
+    "partition": [
+     25,
+     23
+    ]
+   },
+   "serve": {
+    "tensor_parallel": 2,
+    "pipeline_parallel": 2,
+    "max_num_seqs": 8,
+    "max_num_batched_tokens": 1024,
+    "kv_cache_dtype": "fp8_e4m3",
+    "kv_cache_memory": 3556769792,
+    "spec_k": 3,
+    "recoverssm": true,
+    "block_size": 4608,
+    "prefix_match_unit": 64,
+    "image_max_pixels": 8388608,
+    "uniform_verify": true
+   },
+   "capacity": {
+    "estimate": false,
+    "pool_tokens": 894618,
+    "fit_262k": 3,
+    "fit_131k": 6,
+    "basis": "Reference-host runs 2026-10-21 (4 x RTX 3090, full P2P): engine-fit pool 894,618 tokens at the 3,556,769,792-byte pin (3.41 x 262K; 3 x 262K by engine fit, 3 x ~262K needle prompts (259,261-261,565 tokens) sent at once and all answered in the full card). 131K residency is the pool ratio, not a measured 6-stream load."
+   },
+   "p2p": "Required for this row: the launcher sets VLLM_SKIP_P2P_CHECK=1 NCCL_P2P_LEVEL=SYS NCCL_PROTO=Simple VLLM_ALLREDUCE_USE_FLASHINFER_PCIE_IPC=1 and keeps custom all-reduce off. Hosts without P2P take ornith-quad-3090-nop2p.",
+   "evidence": [
+    "Reference host 2026-10-21 (4 x RTX 3090 at 220 W, full P2P, Merlin 3.0.0 wheel + the Ornith engine changes): KV pin 3,556,769,792 B verified at 8 MP + 262K with 1,058 MiB worst-card free (headroom probe with uniform verify off); pool 894,618 tokens.",
+    "Full card with uniform verify on, 2026-10-21: PASS. Needles 10/10 at 131K and 23/23 at 262K exact; 3 x ~262K needle prompts (259,261-261,565 tokens) sent at once, all found; agent-trace replay 52/52 tool calls valid (decode p50 149 tok/s); decode (thinking on) 144 / 127 / 106 / 90 tok/s at 4K / 32K / 131K / 261,120; cold prefill 5,148 tok/s at 10K and 3,049 tok/s at 100K; GSM8K-200 190/200 (B band, thinking off).",
+    "Uniform verify identity, 2026-10-21 (reference host): bitwise identical to UV off at 1 session (0 of 1,456 positions differ), with the same answers at 6 sessions and on a 258,000-token row, when both boots share one compile cache; a fresh compile cache drifts at temperature 0 with or without UV. The 8 MP + 262K headroom of each pin was measured with UV off; UV's own image headroom was not measured separately."
+   ],
+   "notes": [
+    "Checkpoint: Ornith-1.5-122B-A10B-W4A16-Merlin (INT4 g128 routed experts, INT4 MTP experts, INT8 GDN projections, FP8 KV scales from calibration).",
+    "RecoverSSM is --use-replayssm with --mamba-backend triton on Model Runner V2; prefix caching runs with --mamba-cache-mode align, block 4608 (the engine minimum at fp32 SSM state is 4,512) and prefix-match unit 64.",
+    "MERLIN_MOE_UNIFORM_VERIFY=1 (UV; set UV=0 to turn it off) runs the MTP verify batch through one MoE graph, on the reference host.",
+    "Layer partition 25,23 (VLLM_PP_LAYER_PARTITION, PP_PARTITION) puts the MTP layer's stage at 23 decoder layers."
+   ],
+   "cuda_visible_devices": "0,1,2,3"
+  },
+  {
+   "id": "ornith-quad-3090-nop2p",
+   "title": "Ornith 1.5 122B-A10B (W4A16 + INT4 MTP experts) on 4 x RTX 3090 24 GB without P2P (TP2 x PP2 + EP, RecoverSSM)",
+   "status": "tested",
+   "tested_label": "tested on a 4 x RTX 3090 host without P2P (PCIe x8, 2026-10-21)",
+   "match": {
+    "arch": [
+     "sm_86"
+    ],
+    "cards": 4,
+    "vram_gib": 24,
+    "tested_gpu_names": [
+     "RTX 3090$"
+    ],
+    "p2p": "off"
+   },
+   "launcher": {
+    "path": null,
+    "note": "no shim pins this row; merlin serve ornith1.5 <dir> picks it on a host without P2P (or --profile ornith-quad-3090-nop2p)"
+   },
+   "layout": {
+    "tp": 2,
+    "pp": 2,
+    "ep": true,
+    "partition": [
+     25,
+     23
+    ]
+   },
+   "serve": {
+    "tensor_parallel": 2,
+    "pipeline_parallel": 2,
+    "max_num_seqs": 8,
+    "max_num_batched_tokens": 1024,
+    "kv_cache_dtype": "fp8_e4m3",
+    "kv_cache_memory": 3892314112,
+    "spec_k": 3,
+    "recoverssm": true,
+    "block_size": 4608,
+    "prefix_match_unit": 64,
+    "image_max_pixels": 8388608,
+    "uniform_verify": true
+   },
+   "capacity": {
+    "estimate": false,
+    "pool_tokens": 977838,
+    "fit_262k": 3,
+    "fit_131k": 7,
+    "basis": "Measured 2026-10-21 on 4 x RTX 3090 (PCIe x8, P2P off): pool 977,838 tokens at the 3,892,314,112-byte pin (3.73 x 262K by pool; 3 x 262K by engine fit). 131K residency is the pool ratio."
+   },
+   "p2p": "For hosts without peer-to-peer: the launcher sets NCCL_P2P_DISABLE=1 and keeps custom all-reduce off.",
+   "evidence": [
+    "Measured 2026-10-21 on 4 x RTX 3090 (PCIe x8, P2P off, Merlin 3.0.0 wheel + the Ornith engine changes): KV pin 3,892,314,112 B verified at 8 MP + 262K with 1,057 MiB worst-card free (headroom probe with uniform verify off); pool 977,838 tokens.",
+    "No-P2P host, 2026-10-21, uniform verify: bitwise identical to UV off at 1 session and the same answers at 6 sessions, on one compile cache; median decode (thinking off) 118 / 114 / 101 / 80 tok/s at 4K / 32K / 131K / 262K; GSM8K-200 193/200. RecoverSSM: cancel mid-prefill / mid-decode probes passed; 6-session answers matched stock and 1-session outputs differed on 9 of 12 prompts (temperature-0 drift). The 262K identity requests failed (HTTP 400: prompt plus output over 262,144 tokens) and give no identity evidence. The no-P2P host's full card was skipped; the full card ran on the reference host (the P2P row)."
+   ],
+   "notes": [
+    "Same recipe as ornith-quad-3090 apart from the interconnect environment and the larger pin the no-P2P host left free.",
+    "MERLIN_MOE_UNIFORM_VERIFY=1 (UV; set UV=0 to turn it off) runs the MTP verify batch through one MoE graph."
+   ],
+   "cuda_visible_devices": "0,1,2,3"
+  }
+ ]
+}
