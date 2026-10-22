@@ -7,7 +7,7 @@
  },
  "reference": {
   "note": "The Ornith 1.5 launcher is the ornith family shape of tools/merlin/launch.py (the argv of the 2026-10-21 qualification runs). Pool and headroom numbers are read from the 2026-10-21 reference-host and no-P2P-host runs, not re-measured here.",
-  "public_release": "none yet (Merlin 3.0.0 checkpoint, publication pending)"
+  "public_release": "Merlin 3.0.0 checkpoint, public on Hugging Face (halt95/Ornith-1.5-122B-A10B-W4A16-Merlin, pinned revision 7116c9e4c469286850f46230ce266edab8206c3f); tested on the reference host per the 2026-10-21 bench card (models/ornith1.5/benchmarks/2026-10-21/BENCH-CARD.md)"
  },
  "launch": {
   "note": "The Ornith family shape of tools/merlin/launch.py. Engine requirement: the Qwen3.5-MoE RecoverSSM, host-embed and uniform-verify support of the Merlin 3.0.0 engine.",

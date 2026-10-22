@@ -795,7 +795,7 @@ def effective_p2p(inv: Inventory, forced: str, report: Report) -> str:
 STRICT_P2P_MODELS = ("flash-next", "ornith")
 # merlin serve's checkpoint name and the placeholder directory a start line shows, per non-Flash-Next family
 CHECKPOINT_NAMES = {"flash-next": "flash-next", "27b": "27b", "svl": "nemotron-super-vl", "ornith": "ornith1.5"}
-CKPT_DIRS = {"27b": "Qwen3.8-27B-checkpoint", "svl": "Super-VL-120B-A12B-W4A16-mtpint4", "ornith": "Ornith-1.5-122B-A10B-W4A16-Merlin"}
+CKPT_DIRS = {"27b": "Qwen3.8-27B-checkpoint", "svl": "Nemotron-3.5-Super-VL-120B-A12B-W4A16-Merlin", "ornith": "Ornith-1.5-122B-A10B-W4A16-Merlin"}
 
 
 def _gib(mib: float) -> float:
