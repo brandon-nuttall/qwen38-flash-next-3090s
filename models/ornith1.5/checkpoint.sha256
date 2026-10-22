@@ -1,4 +1,4 @@
-# SHA-256 of the 130 files of halt95/Ornith-1.5-122B-A10B-W4A16-Merlin (Hugging Face; hashed from the upload tree, 2026-10-22);
+# SHA-256 of the 130 files of halt95/Ornith-1.5-122B-A10B-W4A16-Merlin (Hugging Face revision 7116c9e4c469286850f46230ce266edab8206c3f; hashed from the upload tree, 2026-10-22);
 # run 'sha256sum -c' inside the checkpoint directory. README.md, assets/hero.png and assets/speed.png (the model card and its images) are not listed: card edits change them.
 3a9c2b5566067fd8382c6ed4c9b1e49d48a89d81bc921bfc6fa45f045ec3aed4  LICENSE-MIT
 bbedc3fda3305820b977265f01b8619d87570a6739de3a5582c3464840f1e57a  LICENSE-QWEN

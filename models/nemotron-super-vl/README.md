@@ -14,8 +14,8 @@ parallelism, Mamba-2 RecoverSSM, MTP speculative decoding and prefix caching, be
 ![Nemotron Super VL Merlin 3.0.0 at a glance](docs/images/svl-merlin-3.0.0-summary.png)
 
 ```bash
-MODEL=/path/to/Super-VL-120B-A12B-W4A16-mtpint4 PORT=8100 bash models/nemotron-super-vl/serve.sh
-# or, from the checkout: merlin serve nemotron-super-vl /path/to/Super-VL-120B-A12B-W4A16-mtpint4
+MODEL=~/models/nemotron-super-vl PORT=8100 bash models/nemotron-super-vl/serve.sh
+# or, from the checkout: merlin serve nemotron-super-vl ~/models/nemotron-super-vl
 ```
 
 Extra arguments go to `vllm serve` after the launcher's own flags (later flags win). Environment: `MODEL` (required), `GPUS`

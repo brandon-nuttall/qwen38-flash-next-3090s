@@ -113,7 +113,7 @@ To run it: [Quick start](README.md#quick-start), or [Build and serve](docs/refer
     fenced engine stream (a violation falls back to polling, loudly); fatal sites are armed on the first copy that shows
     the count; sleep mode suspends the reader. Detection while serving stays cadence-bound (about one to three 50 ms
     intervals, then the next step), as before the fix. Thanks to the community Flash-Next
-    [idle-power report](https://github.com/halt95/qwen38-flash-next-3090s/issues/2) and [contribution](https://github.com/halt95/qwen38-flash-next-3090s/pull/3),
+    [idle-power report](https://github.com/halt95/merlin-engine/issues/2) and [contribution](https://github.com/halt95/merlin-engine/pull/3),
     which proposed pausing the reader after a fixed idle timeout; the release parks it once the engine has drained
     instead, the same implementation as Flash-Next v2.5.2.
 - Both serve scripts pass `--enable-prompt-tokens-details`, so every response reports

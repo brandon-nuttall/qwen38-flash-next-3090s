@@ -1,4 +1,4 @@
-# SHA-256 of the 89 checkpoint files of halt95/Nemotron-3.5-Super-VL-120B-A12B-W4A16-Merlin (Hugging Face; hashed from the upload tree, 2026-10-22);
+# SHA-256 of the 89 checkpoint files of halt95/Nemotron-3.5-Super-VL-120B-A12B-W4A16-Merlin (Hugging Face revision a0c5c92c01ac87bee8fd94299897970bc83072bf; hashed from the upload tree, 2026-10-22);
 # run 'sha256sum -c' inside the checkpoint directory. README.md and assets/ (the model card and its images) are not listed: card edits change them.
 be21b29b1c69af5b4a4e60a6bd7bc933eec374e52be29d1ebb9e6a17a6588491  LICENSE
 e78f57e260a1adfd6e958e9161d80f17fd43ca49d94856ea872be3a49bf793b0  NOTICE

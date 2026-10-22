@@ -18,15 +18,17 @@ Copyright 2026 halt95
 
 This checkpoint is a modified version of:
   - NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16 by NVIDIA
-    (nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16, revision 533d66230b6e75518bf32d2d7a7b95a24c3dd517),
-    distributed under the OpenMDW License Agreement, version 1.1 (OpenMDW-1.1). A copy of the agreement is in LICENSE.
+    (nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16, weights and files at revision
+    533d66230b6e75518bf32d2d7a7b95a24c3dd517; NVIDIA's later commits up to 1f8953f7, 2026-10-16, change only its
+    README.md), distributed under the OpenMDW License Agreement, version 1.1 (OpenMDW-1.1). A copy of the
+    agreement is in LICENSE.
 
 It is an independent derivative made by halt95. It is not made, reviewed or endorsed by NVIDIA. "NVIDIA" and
 "Nemotron" are NVIDIA's names, used here only to describe the origin of the weights.
 
-NVIDIA's model card is kept unchanged as NVIDIA-MODEL-CARD.md, and NVIDIA's bias.md, explainability.md, privacy.md
-and safety.md are kept unchanged. They describe the original model, its training data and its intended use; they
-apply to this derivative as well.
+NVIDIA's model card is kept unchanged as NVIDIA-MODEL-CARD.md (their README.md at revision 1f8953f7), and NVIDIA's
+bias.md, explainability.md, privacy.md and safety.md are kept unchanged. They describe the original model, its
+training data and its intended use; they apply to this derivative as well.
 
 Changes made by halt95:
   - model-*.safetensors, model.safetensors.index.json: the weights were quantized (round-to-nearest, symmetric, no
@@ -35,12 +37,15 @@ Changes made by halt95:
       * Mamba-2 mixer in_proj and out_proj: INT8 per output channel;
       * MTP draft head: routed experts INT4 (group 128); its attention, latent, shared-expert and eh projections
         INT8 (group 128);
-      * embeddings, lm_head, attention, latent projections, shared experts, gates, conv1d, the vision tower and the
-        vision projector stay BF16.
-    The tensors are stored in the compressed-tensors pack-quantized format; model-summary-idxs.safetensors is part of
-    that layout.
+      * outside the MTP head, the attention, latent projections and shared experts, and everywhere the embeddings,
+        lm_head, router gates, conv1d, the vision tower and the vision projector, are not quantized: they keep NVIDIA's
+        dtypes (BF16, with about 21K parameters in F32).
+    The tensors are stored in the compressed-tensors pack-quantized format. model-summary-idxs.safetensors holds
+    NVIDIA's two-element vision summary_idxs tensor unchanged, re-saved with a format: pt header.
   - config.json: carries the quantization_config above.
-  - README.md: replaced by this checkpoint's card. NVIDIA's card is NVIDIA-MODEL-CARD.md.
+  - README.md: replaced by this checkpoint's card, with its two images in assets/. NVIDIA's card is
+    NVIDIA-MODEL-CARD.md.
   - LICENSE, NOTICE, SHA256SUMS: added.
+  - .gitattributes: not carried over (the Hugging Face upload writes its own).
 Every other file (tokenizer, chat template, generation and processor configs, the remote-code .py files, the
 reasoning parser, the documentation and images) is NVIDIA's, byte for byte.

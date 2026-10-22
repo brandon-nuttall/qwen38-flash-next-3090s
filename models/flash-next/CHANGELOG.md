@@ -126,7 +126,7 @@ the v2.2.0 build-artifacts asset is reused again. To run it: the Quick start of 
   It is not a compile factor: changing it does not trigger a recompile.
 - **The same engine change as the Qwen3.8-27B releases.** The fix is the guard commit the 27B v1.3.0 and ThinkingCap
   v1.0.0 releases are built on, applied from the same patch file. Thanks to the community
-  [idle-power report](https://github.com/halt95/qwen38-flash-next-3090s/issues/2) and [contribution](https://github.com/halt95/qwen38-flash-next-3090s/pull/3), which proposed pausing the reader after a fixed 2 s of idle; the release parks it once the engine
+  [idle-power report](https://github.com/halt95/merlin-engine/issues/2) and [contribution](https://github.com/halt95/merlin-engine/pull/3), which proposed pausing the reader after a fixed 2 s of idle; the release parks it once the engine
   has drained instead, so it can share one implementation with the 27B releases.
 - Nothing else changed: no kernel, scheduler or numerics code. Single-stream decode and cold prefill read as v2.5.1's
   within run-to-run noise (ladder cell medians within ±1.8 %; median tokens per event match to within 0.01); concurrent

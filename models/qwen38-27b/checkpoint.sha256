@@ -1,3 +1,6 @@
+# SHA-256 of the 11 checkpoint files of halt95/Qwen3.8-27B-W4A16-Merlin (Hugging Face revision 7a0af39f63dd4fb0733c23d3ec126762074a503f, 2026-10-13);
+# run 'sha256sum -c' inside the checkpoint directory. README.md (the model card) and the licence/NOTICE files are not listed: card and notice edits change them.
+# Generated from the Hugging Face file metadata (large files: the LFS sha256; small files: downloaded and hashed).
 c3cf9e34abf4f9e36c2d72165aa9c132d3e2a725b6c2586aaa3a8af9d7a81041  chat_template.jinja
 c927c334e6d1482c72dec23ec1391c463756871769a3496917e5ed5bf9afab71  config.json
 56147698c439ec2da22f5820fcf76fa14788b6c0ebdd2b2e073c6cddfdd1ea30  generation_config.json

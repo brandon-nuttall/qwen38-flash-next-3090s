@@ -187,7 +187,7 @@ Historical release notes for vLLM 0.30; the install and performance claims in th
 - **fp16 SSM state, unchanged.**
 - **Idle cards drop to P8.** The engine's bounds-guard reader parks with no device work while the server is idle, so
   idle cards can drop to P8 instead of holding P2. On vLLM 0.32 idle parking is built in and has no environment switch. Thanks to
-  the community [Flash-Next idle-power report](https://github.com/halt95/qwen38-flash-next-3090s/issues/2)
+  the community [Flash-Next idle-power report](https://github.com/halt95/merlin-engine/issues/2)
   and [contribution](https://github.com/halt95/qwen38-flash-next-3090s/pull/3), which led to this fix.
 - **Cached tokens in every response** (`--enable-prompt-tokens-details`), and a per-image pixel cap, `MAX_PIXELS`
   (v1.3.0 default 4,194,304 = 2048×2048; 3.0.0 release cap is 8,388,608 = 8 MP).
@@ -255,7 +255,7 @@ and lucifer1004 ([uniform multi-token decode](https://github.com/vllm-project/vl
 froggeric ([Qwen-Fixed-Chat-Templates](https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates) v22.5),
 [aikitoria's open-kernel-module patch](https://github.com/aikitoria/open-gpu-kernel-modules) (P2P on consumer Ampere),
 and a community Flash-Next
-[idle-power report](https://github.com/halt95/qwen38-flash-next-3090s/issues/2) and
+[idle-power report](https://github.com/halt95/merlin-engine/issues/2) and
 [contribution](https://github.com/halt95/qwen38-flash-next-3090s/pull/3), behind the guard fix in Merlin engine v2.5.2.
 Third-party notices are in the repository's `NOTICE`; the list with links per item: [Credit](docs/reference.md#credit).
 

@@ -318,7 +318,7 @@ fix in item 6) with the 27B series 0001-0011 applied in order (`patches/merlin-e
    card. The guard fix in
    Merlin engine v2.5.2 (ex-series 0012): the engine's bounds-guard reader (default `warn`) stops copying its counters while the server is idle, so idle cards can
    drop to P8 instead of holding P2. Thanks to the community
-   [Flash-Next idle-power report](https://github.com/halt95/qwen38-flash-next-3090s/issues/2) and
+   [Flash-Next idle-power report](https://github.com/halt95/merlin-engine/issues/2) and
    [contribution](https://github.com/halt95/qwen38-flash-next-3090s/pull/3), which led to this fix; the same implementation
    ships in Merlin engine v2.5.2 (Flash-Next v2.5.2). Before it parks it
    reads every counter once after the last step's GPU work has completed, so a guard hit on the last step before idle is
@@ -635,7 +635,7 @@ architecture; the container route (dropped from v1.3.0, rebuilt and run on GPUs 
 - [compressed-tensors](https://github.com/vllm-project/compressed-tensors) (the checkpoint format; `quant/` packs with it)
 - Chat template: froggeric's [Qwen-Fixed-Chat-Templates](https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates) v22.5
 - P2P on consumer Ampere: [aikitoria's open-kernel-module patch](https://github.com/aikitoria/open-gpu-kernel-modules)
-- A community [Flash-Next idle-power report](https://github.com/halt95/qwen38-flash-next-3090s/issues/2) and
+- A community [Flash-Next idle-power report](https://github.com/halt95/merlin-engine/issues/2) and
   [contribution](https://github.com/halt95/qwen38-flash-next-3090s/pull/3), behind the guard fix in Merlin engine v2.5.2
 - ThinkingCap fine-tune: [bottlecapai/ThinkingCap-Qwen3.8-27B](https://huggingface.co/bottlecapai/ThinkingCap-Qwen3.8-27B)
   (BottleCap AI); the ThinkingCap profile serves a quantised derivative of it, not affiliated with or endorsed by BottleCap AI

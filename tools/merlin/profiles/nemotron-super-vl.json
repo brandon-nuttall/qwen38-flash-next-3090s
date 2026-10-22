@@ -7,7 +7,7 @@
  },
  "reference": {
   "note": "The Super VL launcher is the recipe under models/nemotron-super-vl/ and is not rendered here. Pool and headroom numbers are read from the 2026-10-16 reference-host runs, not re-measured here. The KV pin is measured on the reference host (svl-quad-3090) and provisional on every other row.",
-  "public_release": "none yet (Merlin 3.0.0 checkpoint, release gate pending)"
+  "public_release": "Merlin 3.0.0 checkpoint, public on Hugging Face (halt95/Nemotron-3.5-Super-VL-120B-A12B-W4A16-Merlin, pinned revision a0c5c92c01ac87bee8fd94299897970bc83072bf); tested on the reference host per the 2026-10-20 bench card (models/nemotron-super-vl/benchmarks/2026-10-20)"
  },
  "profiles": [
   {

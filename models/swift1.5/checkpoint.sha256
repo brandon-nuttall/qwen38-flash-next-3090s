@@ -1,4 +1,4 @@
-# SHA-256 of the 40 checkpoint files of halt95/Swift1.5-Qwen3.8-Flash-Next-W4A16-Merlin;
+# SHA-256 of the 40 checkpoint files of halt95/Swift1.5-Qwen3.8-Flash-Next-W4A16-Merlin (Hugging Face revision 4d4c7d3b0bb86c76838457e48c823061a3d2f8f6);
 # run 'sha256sum -c' inside the checkpoint directory. README.md (the model card) is not listed: card edits change it.
 7a3af3e6b43fcb7c486ea8167252a36a9532dcbdf02d1704a749881872ec551c  LICENSE
 a0dc422560841fd68e06d974907f8b4c709bca44a67daad2b528437bdf676c08  LICENSE-QWEN
