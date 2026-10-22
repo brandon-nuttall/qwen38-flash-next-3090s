@@ -380,7 +380,7 @@ Merlin is built and measured on one home machine. If it saves you time, you can 
   recipe serves.
 - aikitoria: peer-to-peer on consumer Ampere.
 - [brandon-nuttall](https://github.com/brandon-nuttall): `use_local_argmax_reduction` with the Flash-Next MTP drafter.
-- A community idle-power report and first fix behind the v2.5.2 engine fix.
+- [CoolShades](https://github.com/CoolShades) idle-power report and first fix behind the v2.5.2 engine fix.
 - [Neiko2002](https://huggingface.co/Neiko2002) and [Yarikdevcom](https://github.com/yarikdevcom).
 
 Upstream fixes are credited in the engine repository; each checkpoint's licence is on its card.
