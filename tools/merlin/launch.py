@@ -333,6 +333,8 @@ def _build_flash_next(reg, p, checkpoint, ckpt, env, extra, repo: Path) -> Plan:
     chunk = _int_knob(env, "CHUNK", False, str(srv["max_num_batched_tokens"]), 1)
     block = _int_knob(env, "BLOCK_SIZE", False, str(base.get("block_size", 4096)), 1)
     lpt = _int_knob(env, "LPT", False, None, 1)
+    seqs = _knob(env, "SEQS", str(srv["max_num_seqs"]), True)
+    maxlen = _knob(env, "MAXLEN", str(base["max_model_len"]), True)
     # topology mode (the selector itself runs in the host phase)
     auto_topo = env.get("AUTO_TOPO", "0")
     if auto_topo in ("0", ""):
@@ -450,7 +452,7 @@ def _build_flash_next(reg, p, checkpoint, ckpt, env, extra, repo: Path) -> Plan:
         args.append("--disable-custom-all-reduce")
     args += [
         "--speculative-config", spec,
-        "--max-model-len", str(base["max_model_len"]), "--max-num-seqs", str(srv["max_num_seqs"]),
+        "--max-model-len", maxlen, "--max-num-seqs", seqs,
         "--max-num-batched-tokens", chunk,
         "--gpu-memory-utilization", str(base["gpu_memory_utilization"]),
         "--kv-cache-memory-bytes", kv_bytes, "--kv-cache-dtype", srv["kv_cache_dtype"],
@@ -581,12 +583,14 @@ def _build_27b(reg, p, checkpoint, ckpt, env, extra, repo: Path) -> Plan:
     kvf = [] if kv_bytes == "auto" else ["--kv-cache-memory-bytes", kv_bytes]
     chunk = _int_knob(env, "CHUNK", True, str(srv["max_num_batched_tokens"]), 2)
     block = _int_knob(env, "BLOCK_SIZE", True, str(srv["block_size"]) if "block_size" in srv else None, 2)
+    seqs = _knob(env, "SEQS", str(srv["max_num_seqs"]), True)
+    maxlen = _knob(env, "MAXLEN", str(L["max_model_len"]), True)
     args = [
         "--served-model-name", served,
         "--tensor-parallel-size", str(srv["tensor_parallel"]), "--attention-backend", "FLASHINFER",
-        "--max-model-len", str(L["max_model_len"]), "--gpu-memory-utilization", "0.96",
+        "--max-model-len", maxlen, "--gpu-memory-utilization", "0.96",
         "--kv-cache-dtype", srv.get("kv_cache_dtype", "fp8_e4m3"), *kvf, "--mamba-ssm-cache-dtype", "float16",
-        "--max-num-seqs", str(srv["max_num_seqs"]), "--max-num-batched-tokens", chunk,
+        "--max-num-seqs", seqs, "--max-num-batched-tokens", chunk,
         "--enable-prefix-caching", "--mamba-cache-mode", "align", "--enable-prompt-tokens-details", *lpt_flags,
         "--prefix-match-unit", "16", "--enable-mamba-shared-prefix-checkpoint", *rssm,
     ]
