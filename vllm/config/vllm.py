@@ -39,7 +39,7 @@ from .device import DeviceConfig
 from .diffusion import DiffusionConfig
 from .ec_manager_config import EncoderCacheManagerConfig
 from .ec_transfer import ECTransferConfig
-from .engram import EngramConfig, model_has_engram_layers
+from .engram import EngramConfig, model_has_engram_layers, uses_ple_pull_transport
 from .kernel import KernelConfig
 from .kv_events import KVEventsConfig
 from .kv_transfer import KVTransferConfig
@@ -1530,9 +1530,14 @@ class VllmConfig:
         self.engram_config.verify_parallel_config(self.parallel_config)
         # An explicit cpu_offload=True beside the pull transport is
         # a double offload; refused here, before any worker starts.
+        # Flash-next family only — other n-gram models keep upstream's
+        # pinned-host default (resolved per family in verify_model_config).
         from vllm.v1.e2_guards import verify_engram_against_pull
 
-        verify_engram_against_pull(self.engram_config)
+        verify_engram_against_pull(
+            self.engram_config,
+            uses_pull=uses_ple_pull_transport(model_config),
+        )
         logger.info_once("Resolved Engram configuration: %s", str(self.engram_config))
 
     def _reject_mismatched_float_kv_cache(self) -> None:

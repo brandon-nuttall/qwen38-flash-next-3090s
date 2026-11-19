@@ -28,15 +28,6 @@ _NGRAM_LAYER_FIELDS = {
 }
 
 
-def _default_cpu_offload() -> bool:
-    # The PLE pull transport owns the table, so the default is False and
-    # a VLLM_PLE_CPU_OFFLOAD value that would enable upstream's UVA backend
-    # fails the boot.
-    from vllm.v1.e2_guards import pull_transport_cpu_offload_default
-
-    return pull_transport_cpu_offload_default()
-
-
 def model_has_engram_layers(model_config: "ModelConfig | None") -> bool:
     """Whether the model carries n-gram embedding layers."""
     if model_config is None:
@@ -47,15 +38,30 @@ def model_has_engram_layers(model_config: "ModelConfig | None") -> bool:
     return bool(getattr(model_config.hf_text_config, field, None))
 
 
+def uses_ple_pull_transport(model_config: "ModelConfig | None") -> bool:
+    """Whether this model's n-gram table is served by the PLE pull transport.
+
+    That is the flash-next family exactly: the field naming its layers is
+    ``ple_layer_ids``. Only these models tie ``cpu_offload`` to the pull
+    transport; other n-gram models (HY4 Flash) keep upstream's pinned-host
+    semantics."""
+    return (
+        model_config is not None
+        and _NGRAM_LAYER_FIELDS.get(model_config.architecture) == "ple_layer_ids"
+    )
+
+
 @config
 class EngramConfig:
     """Configuration for Engram embedding storage and sharding."""
 
-    cpu_offload: bool = Field(default_factory=_default_cpu_offload)
+    cpu_offload: bool | None = None
     """Store embedding weights in pinned CPU memory for UVA lookup.
-    Defaults to False, because the PLE pull transport owns the table; an
-    explicit True is refused beside the pull transport (see
-    `vllm.v1.e2_guards.verify_engram_against_pull`)."""
+    ``None`` (unset) resolves per family in `verify_model_config`: False on
+    the flash-next family, where the PLE pull transport owns the table (an
+    explicit True is refused there — see
+    `vllm.v1.e2_guards.verify_engram_against_pull`); True everywhere else,
+    matching upstream's host-RAM defaults. Explicit booleans are honored."""
 
     embedding_across_dp: bool = False
     """Shard embeddings across TP and all DP ranks when enabled.
@@ -78,9 +84,12 @@ class EngramConfig:
 
     @model_validator(mode="after")
     def _validate_shared_memory(self) -> Self:
-        if self.dp_shared_memory and not self.cpu_offload:
+        # cpu_offload may still be None here (it resolves per family in
+        # verify_model_config, once the model is known); only an explicit
+        # False contradicts a host-table option at construction time.
+        if self.dp_shared_memory and self.cpu_offload is False:
             raise ValueError("dp_shared_memory requires cpu_offload=True")
-        if self.use_thp and (not self.cpu_offload or self.dp_shared_memory):
+        if self.use_thp and (self.cpu_offload is False or self.dp_shared_memory):
             raise ValueError(
                 "use_thp requires cpu_offload=True and dp_shared_memory=False"
             )
@@ -106,6 +115,27 @@ class EngramConfig:
             for option in ("dp_shared_memory", "embedding_across_dp"):
                 if getattr(self, option):
                     raise ValueError(f"Flash Engram does not support {option}")
+        # cpu_offload resolves per family: None takes the family default
+        # (False on the flash-next family, whose PLE pull transport owns the
+        # table; True everywhere else, upstream's host-RAM tables), an explicit
+        # True beside the pull transport is refused, and an explicit False
+        # (GPU tables) is honored.
+        if self.cpu_offload is None:
+            self.cpu_offload = not uses_ple_pull_transport(model_config)
+        elif self.cpu_offload and uses_ple_pull_transport(model_config):
+            raise ValueError(
+                "cpu_offload=True beside the PLE pull transport: both "
+                "transports would own the table. The flash-next family "
+                "serves cpu_offload=False only."
+            )
+        # Re-check the host-table options against the resolved value (the
+        # construction-time pass cannot see through a None default).
+        if self.dp_shared_memory and not self.cpu_offload:
+            raise ValueError("dp_shared_memory requires cpu_offload=True")
+        if self.use_thp and (not self.cpu_offload or self.dp_shared_memory):
+            raise ValueError(
+                "use_thp requires cpu_offload=True and dp_shared_memory=False"
+            )
 
     def resolve_dp_shared_memory(
         self,

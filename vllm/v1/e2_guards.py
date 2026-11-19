@@ -326,22 +326,30 @@ def check_upstream_uva_env_against_pull() -> None:
 
 
 def pull_transport_cpu_offload_default() -> bool:
-    """The Engram ``cpu_offload`` default, as this fork resolves it: the
-    old-name check above, then ``False`` -- upstream's UVA backend is never
-    the default beside the pull transport.
+    """The Engram ``cpu_offload`` value the flash-next pull transport serves.
+
+    Kept for callers that need the pull-transport family's answer directly
+    (the config path leaves ``cpu_offload`` unset by default and resolves it
+    per family in ``EngramConfig.verify_model_config``); still checks the
+    retired env switch.
     """
     check_upstream_uva_env_against_pull()
     return False
 
 
-def verify_engram_against_pull(engram_config) -> None:
+def verify_engram_against_pull(engram_config, *, uses_pull: bool = True) -> None:
     """Refuse an explicit ``cpu_offload=True`` beside the pull transport.
 
     ``--engram-config '{"cpu_offload": true}'`` takes precedence over every
     default, so it is checked on the resolved object, not the environment.
+    Only the flash-next family (``uses_pull``) is guarded: the pull transport
+    is what owns that family's table, so a True would layer upstream's pinned-
+    host UVA backend beside it. Other n-gram models (HY4 Flash) keep upstream's
+    pinned-host default and may set ``cpu_offload`` openly.
     """
-    check_upstream_uva_env_against_pull()
-    if engram_config is not None and bool(engram_config.cpu_offload):
+    if uses_pull:
+        check_upstream_uva_env_against_pull()
+    if uses_pull and engram_config is not None and bool(engram_config.cpu_offload):
         raise RuntimeError(
             "e2-guard: PLE pull transport but the resolved EngramConfig "
             "has cpu_offload=True (upstream's pinned-host UVA PLE backend). "
