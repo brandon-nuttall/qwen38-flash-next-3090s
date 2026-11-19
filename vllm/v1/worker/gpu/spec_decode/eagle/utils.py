@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 import torch
 import torch.nn as nn
+from typing import Literal
 
 from vllm.config import VllmConfig, replace
 from vllm.distributed.parallel_state import get_pp_group
@@ -75,6 +76,36 @@ def maybe_share_target_embed(
         if draft_embed is not None:
             del draft_inner.embed_tokens
         draft_inner.embed_tokens = target_embed
+
+
+def share_target_lm_head(
+    draft_model: nn.Module,
+    target_lm_head: nn.Module | None,
+    quantization: Literal["fp8", "nvfp4"] | None,
+    can_share: bool = True,
+) -> nn.Module | None:
+    """Install the target lm_head, or its quantized copy, on a drafter that
+    shares it. Returns the installed head, or None if the drafter keeps its own.
+    """
+    draft_lm_head = getattr(draft_model, "lm_head", None)
+    if not (
+        can_share
+        and target_lm_head is not None
+        and _should_share(draft_model, "has_own_lm_head", draft_lm_head, target_lm_head)
+    ):
+        if quantization is not None:
+            raise ValueError(
+                "draft_lm_head_quantization needs a drafter that shares the "
+                "target lm_head."
+            )
+        return None
+    head = target_lm_head
+    if quantization is not None:
+        head = quantized_lm_head_copy(target_lm_head, quantization)
+    if draft_lm_head is not None:
+        del draft_model.lm_head
+    draft_model.lm_head = head
+    return head
 
 
 def load_eagle_model(target_model: nn.Module, vllm_config: VllmConfig) -> nn.Module:
