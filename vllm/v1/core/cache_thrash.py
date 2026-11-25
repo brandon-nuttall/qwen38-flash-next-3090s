@@ -741,13 +741,15 @@ class Admission:
         self.scheduler = scheduler
         manager = scheduler.kv_cache_manager
         specs = [g.kv_cache_spec for g in scheduler.kv_cache_config.kv_cache_groups]
-        # A hybrid layout: attention AND Mamba groups. Pure-Mamba and
-        # attention-only models keep the stock rules.
+        # A hybrid layout: attention AND Mamba groups, OR an active host-RAM KV
+        # tier (e.g. Hy4 Flash's coherent MLA+SWA restore units). Pure-Mamba and
+        # connector-less attention-only models keep the stock rules.
         hybrid = any(isinstance(s, MambaSpec) for s in specs) and any(
             isinstance(s, AttentionSpec) for s in specs
         )
+        host_tier = getattr(scheduler, "tier_plans", None) is not None
         # The scheduler recognizes the exact tier config.
-        on = manager.enable_caching and scheduler.prefix_pins and hybrid
+        on = manager.enable_caching and scheduler.prefix_pins and (hybrid or host_tier)
         # FCFS only: parking reorders the skipped queue, which the priority
         # policy orders by its own key.
         self.miss_defer_s = (

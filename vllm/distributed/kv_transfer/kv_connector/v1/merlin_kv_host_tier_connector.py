@@ -165,6 +165,13 @@ class MerlinKVHostTierConnector(SimpleCPUOffloadConnector):
             return False
         return kv_host_tier_hooks.has_pending_block_frees(manager)
 
+    def has_pending_push_work(self) -> bool:
+        """Include bounded write-back idle drain alongside active transfers."""
+        manager = getattr(self, "scheduler_manager", None)
+        if manager is None:
+            return False
+        return kv_host_tier_hooks.has_pending_push_work(manager)
+
     def get_kv_connector_stats(self) -> "KVConnectorStats | None":
         stats = super().get_kv_connector_stats()
         manager = getattr(self, "scheduler_manager", None)

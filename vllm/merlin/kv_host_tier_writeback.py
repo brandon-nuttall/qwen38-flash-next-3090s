@@ -81,6 +81,7 @@ deadlocked by the cap. Pinned restore sources are reported as
 ``promote_pins``.
 """
 
+import os
 import time
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
@@ -309,6 +310,38 @@ def derive_reserve(
     return reserve, align_groups
 
 
+def default_layout_credits(
+    reserve_blocks: int,
+    row_bytes: int,
+    pp_size: int,
+    num_gpu_blocks: int,
+) -> tuple[int, int]:
+    """Layout-aware default ``(copy_credits, copy_credits_d)`` row limits.
+
+    When env overrides are unset, scales small-row / high-blocks-per-step
+    layouts up to the same per-rank DMA byte ceiling as Flash-Next
+    (32 MiB H2D / 64 MiB D2H) across the PP pipeline depth so write-back keeps
+    pace with chunked prefill without changing larger-row models.
+    """
+    pp = max(1, int(pp_size))
+    if row_bytes > 0 and num_gpu_blocks > 0:
+        scaled_r = min(
+            reserve_blocks * (pp + 1),
+            (DEFAULT_COPY_CREDITS << 20) // row_bytes,
+            num_gpu_blocks // 8,
+        )
+        scaled_d = min(
+            reserve_blocks * (pp + 3),
+            (DEFAULT_COPY_CREDITS_D << 20) // row_bytes,
+            num_gpu_blocks // 4,
+        )
+        return (
+            max(DEFAULT_COPY_CREDITS, scaled_r),
+            max(DEFAULT_COPY_CREDITS_D, scaled_d),
+        )
+    return DEFAULT_COPY_CREDITS, DEFAULT_COPY_CREDITS_D
+
+
 @dataclass
 class WritebackCounters:
     """Cumulative write-back counters, on the tier log line."""
@@ -521,6 +554,9 @@ class WriteBack:
         # flight and nothing selected (``select``); the gate holds no waiter
         # once it reaches IDLE_BREAK_STEPS.
         self.idle_steps = 0
+        # PP depth and consecutive empty idle walks (for bounded idle drain).
+        self._pp_size: int = 1
+        self._idle_empty_walks: int = 0
         # GPU block id -> its demotion ticket, for every source still pinned.
         self.in_flight: dict[int, DemoteTicket] = {}
         # Tickets selected this step, awaiting their store event (``issue``).
@@ -665,6 +701,27 @@ class WriteBack:
             return None
         self.copyq.bind_manager(kv_cache_manager)
         return self.copyq
+
+    def apply_layout_credit_defaults(
+        self, row_bytes: int, pp_size: int, num_gpu_blocks: int
+    ) -> None:
+        """Apply layout-scaled H2D/D2H credit defaults when env overrides are unset."""
+        self._pp_size = max(1, int(pp_size))
+        default_r, default_d = default_layout_credits(
+            self.reserve, row_bytes, self._pp_size, num_gpu_blocks
+        )
+        if CREDITS_ENV not in os.environ:
+            self.credits_cap = default_r
+        if CREDITS_D_ENV not in os.environ and CREDITS_ENV not in os.environ:
+            self._credits_d = default_d
+
+    def has_pending_idle_work(self) -> bool:
+        """Whether idle write-back still has queued backlog or a dirty grace."""
+        if self.backlog:
+            return True
+        if self._idle_empty_walks >= max(2, self._pp_size + 1):
+            return False
+        return self.copyq is not None and self.copyq.has_dirty_grace()
 
     @property
     def tier(self) -> "BlockTierState":
@@ -1474,7 +1531,11 @@ class WriteBack:
                         live.add(b.block_id)
         self.gpu_pool.tier.live_ids = frozenset(live)
         if self.units is not None:
-            self.units.set_running_sw_keys(running, num_scheduled=num_scheduled)
+            self.units.set_running_sw_keys(
+                running,
+                num_scheduled=num_scheduled,
+                retention_interval=getattr(coordinator, "retention_interval", None),
+            )
 
     def account_quarantine(self, abandoned_loads: int = 0) -> None:
         """Quarantined storage: copies of an older epoch still in flight plus
@@ -1511,6 +1572,10 @@ class WriteBack:
             self.idle_steps += 1
         else:
             self.idle_steps = 0
+        if num_running > 0 or picked or self.in_flight or self.promote_dma:
+            self._idle_empty_walks = 0
+        else:
+            self._idle_empty_walks += 1
         return picked
 
     def _breaker_progress(self, block_id: int) -> bool:
@@ -3459,6 +3524,7 @@ class WriteBack:
             self._release_held(list(self._held_gpu.values()))
         self._release_reserved_all()
         self.idle_steps = 0
+        self._idle_empty_walks = 0
         self.demand_hint = 0
         self._waits.clear()
         self._escape_pending = 0
@@ -3509,6 +3575,7 @@ __all__ = [
     "WriteBack",
     "WritebackCounters",
     "copy_credits",
+    "default_layout_credits",
     "derive_reserve",
     "escape_steps",
 ]

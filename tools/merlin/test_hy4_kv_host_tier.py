@@ -1199,6 +1199,401 @@ class TestHy4UnitLifecycleAndRestore(unittest.TestCase):
         self.assertEqual(plan.boundary, 2048)
         self.assertEqual(len(plan.groups), 21)  # 1 MLA + 1 IndexPool + 18 SWA + 1 CircularBuffer
 
+    def test_layout_credit_defaults_scale_hy4_and_preserve_flash_next_and_env_overrides(self):
+        from vllm.merlin import kv_host_tier_writeback as wb_mod
+
+        # Hy4 Flash (small 251,904 B rows, reserve=55, PP=2) scales up to 32/64 MiB DMA cap
+        self.assertEqual(
+            wb_mod.default_layout_credits(
+                reserve_blocks=55,
+                row_bytes=251904,
+                pp_size=2,
+                num_gpu_blocks=4262,
+            ),
+            (133, 266),
+        )
+        # Flash-Next (1 MiB+ rows) keeps (32, 64)
+        self.assertEqual(
+            wb_mod.default_layout_credits(
+                reserve_blocks=20,
+                row_bytes=1 << 20,
+                pp_size=2,
+                num_gpu_blocks=4000,
+            ),
+            (32, 64),
+        )
+        # Tiny unit-test pool clamps cleanly back to (32, 64)
+        self.assertEqual(
+            wb_mod.default_layout_credits(
+                reserve_blocks=55,
+                row_bytes=251904,
+                pp_size=2,
+                num_gpu_blocks=128,
+            ),
+            (32, 64),
+        )
+
+        kv_mgr, cpu_coord, units, wb, _ = self._build_stack(
+            dcp=2, pp=2, num_gpu_blocks=4262, num_cpu_blocks=8000
+        )
+
+        # Env unset: WriteBack gets (133, 266)
+        with mock.patch.dict(os.environ, {}, clear=True):
+            wb_auto = wb_mod.WriteBack(
+                cpu_coord.block_pool,
+                wb.group_ids,
+                reserve_blocks=55,
+                alignment_groups=11,
+                world_size=8,
+            )
+            wb_auto.apply_layout_credit_defaults(251904, pp_size=2, num_gpu_blocks=4262)
+            self.assertEqual(wb_auto.credits_cap, 133)
+            self.assertEqual(wb_auto.credits_d, 266)
+            self.assertEqual(wb_auto._pp_size, 2)
+
+        # Explicit COPY_CREDITS overrides both H2D and D2H
+        with mock.patch.dict(
+            os.environ, {"MERLIN_KV_HOST_TIER__COPY_CREDITS": "16"}, clear=True
+        ):
+            wb_cr = wb_mod.WriteBack(
+                cpu_coord.block_pool,
+                wb.group_ids,
+                reserve_blocks=55,
+                alignment_groups=11,
+                world_size=8,
+            )
+            wb_cr.apply_layout_credit_defaults(251904, pp_size=2, num_gpu_blocks=4262)
+            self.assertEqual(wb_cr.credits_cap, 16)
+            self.assertEqual(wb_cr.credits_d, 16)
+
+        # Explicit COPY_CREDITS_D overrides D2H only; H2D scales to 133
+        with mock.patch.dict(
+            os.environ, {"MERLIN_KV_HOST_TIER__COPY_CREDITS_D": "100"}, clear=True
+        ):
+            wb_crd = wb_mod.WriteBack(
+                cpu_coord.block_pool,
+                wb.group_ids,
+                reserve_blocks=55,
+                alignment_groups=11,
+                world_size=8,
+            )
+            wb_crd.apply_layout_credit_defaults(251904, pp_size=2, num_gpu_blocks=4262)
+            self.assertEqual(wb_crd.credits_cap, 133)
+            self.assertEqual(wb_crd.credits_d, 100)
+
+        # Explicit COPY_BYTES_D_MIB caps _d_capacity()
+        with mock.patch.dict(
+            os.environ, {"MERLIN_KV_HOST_TIER__COPY_BYTES_D_MIB": "16"}, clear=True
+        ):
+            wb_bytes = wb_mod.WriteBack(
+                cpu_coord.block_pool,
+                wb.group_ids,
+                reserve_blocks=55,
+                alignment_groups=11,
+                world_size=8,
+            )
+            wb_bytes.row_bytes = 251904
+            wb_bytes.apply_layout_credit_defaults(251904, pp_size=2, num_gpu_blocks=4262)
+            self.assertEqual(wb_bytes.credits_d, 266)
+            self.assertEqual(wb_bytes._d_capacity(), (16 << 20) // 251904)
+
+    def test_copyq_oversized_grace_starts_with_inflight_when_backlog_empty(self):
+        from vllm.merlin.kv_host_tier_iface import CopyLane
+        from vllm.v1.request import RequestStatus
+
+        kv_mgr, cpu_coord, units, wb, fake_sched = self._build_stack(
+            dcp=2, pp=2, num_gpu_blocks=1600, num_cpu_blocks=4000
+        )
+        hashes = _make_hashes(b"oversized-grace", 64)
+        req = _SimRequest("rg", hashes, num_tokens=2240, num_prompt_tokens=2200)
+        self._run_prefill_and_commit_gpu(kv_mgr, kv_mgr.block_pool.tier, req, 2240, step_start=1)
+        req.status = RequestStatus.FINISHED_STOPPED
+        unit = fake_sched.record_unit(req)
+        self.assertIsNotNone(unit)
+        kv_mgr.free(req)
+
+        other_blk = kv_mgr.block_pool.get_new_blocks(1)[0]
+        wb.in_flight[other_blk.block_id] = types.SimpleNamespace(block=other_blk)
+        self.assertFalse(wb.backlog)
+
+        # Unit has ~92 GPU members (> rows_budget=10), so it must still start while
+        # other DMA is in flight as long as wb.backlog is empty.
+        offers = wb.copyq.offers(step=5, rows_budget=10, bytes_budget=0)
+        self.assertEqual(len(offers), 1)
+        self.assertIs(offers[0].lane, CopyLane.GRACE)
+        self.assertGreater(offers[0].rows, 10)
+
+        # Once wb.backlog is non-empty, oversized GRACE offers wait.
+        wb.backlog.append(other_blk)
+        self.assertEqual(wb.copyq.offers(step=5, rows_budget=10, bytes_budget=0), [])
+
+    def test_writeback_idle_work_drains_backlog_and_bounds_empty_walks(self):
+        from vllm.distributed.kv_transfer.kv_connector.v1.merlin_kv_host_tier_connector import (
+            MerlinKVHostTierConnector,
+        )
+        from vllm.merlin import kv_host_tier_hooks
+        from vllm.v1.request import RequestStatus
+
+        kv_mgr, cpu_coord, units, wb, fake_sched = self._build_stack(
+            dcp=2, pp=2, num_gpu_blocks=1600, num_cpu_blocks=4000
+        )
+        wb.apply_layout_credit_defaults(251904, pp_size=2, num_gpu_blocks=1600)
+        fake_sched.has_pending_stores = lambda: False
+
+        conn = MerlinKVHostTierConnector.__new__(MerlinKVHostTierConnector)
+        conn.scheduler_manager = fake_sched
+
+        # Clean idle state: no push work
+        self.assertFalse(wb.has_pending_idle_work())
+        self.assertFalse(kv_host_tier_hooks.has_pending_push_work(fake_sched))
+        self.assertFalse(conn.has_pending_push_work())
+
+        # Backlog always requests another step even past idle-walk bound
+        wb._idle_empty_walks = 10
+        wb.backlog.append(kv_mgr.block_pool.blocks[1])
+        self.assertTrue(wb.has_pending_idle_work())
+        self.assertTrue(conn.has_pending_push_work())
+        wb.backlog.clear()
+        wb._idle_empty_walks = 0
+
+        # Non-tiny unacked dirty grace stays pending up to max(2, pp_size + 1) = 3 empty walks
+        tier = kv_mgr.block_pool.tier
+        hashes = _make_hashes(b"idle-grace", 64)
+        req = _SimRequest("ri", hashes, num_tokens=2240, num_prompt_tokens=2200)
+        tier.advance_step(10)
+        blks = kv_mgr.allocate_slots(req, num_new_tokens=2240)
+        self.assertIsNotNone(blks)
+        req.num_computed_tokens = 2240
+        kv_mgr.coordinator.cache_blocks(req, 2240)
+        kv_mgr.new_step_starts()
+        # Note: writer step 10 is NOT acked yet, so tail blocks remain unready!
+        req.status = RequestStatus.FINISHED_STOPPED
+        unit = fake_sched.record_unit(req)
+        self.assertIsNotNone(unit)
+        kv_mgr.free(req)
+
+        self.assertTrue(wb.copyq.has_dirty_grace())
+        wb.select(step=11, num_running=0)
+        self.assertEqual(wb._idle_empty_walks, 1)
+        self.assertTrue(wb.has_pending_idle_work())
+
+        wb.select(step=12, num_running=0)
+        self.assertEqual(wb._idle_empty_walks, 2)
+        self.assertTrue(wb.has_pending_idle_work())
+
+        wb.select(step=13, num_running=0)
+        self.assertEqual(wb._idle_empty_walks, 3)
+        self.assertFalse(wb.has_pending_idle_work())
+        self.assertFalse(conn.has_pending_push_work())
+
+        # Running work or reset clears _idle_empty_walks; acking allows grace drain
+        wb.select(step=14, num_running=1)
+        self.assertEqual(wb._idle_empty_walks, 0)
+        self.assertTrue(wb.has_pending_idle_work())
+        tier.set_acked_step(10)
+        picked = wb.select(step=15, num_running=0)
+        self.assertTrue(picked)
+        self.assertEqual(wb._idle_empty_walks, 0)
+        wb.reset()
+        self.assertEqual(wb._idle_empty_walks, 0)
+
+    def test_bind_kv_cache_manager_sets_scheduler_attr_for_grace_gauge(self):
+        from vllm.merlin import kv_host_tier_runtime
+        from vllm.v1.request import RequestStatus
+
+        kv_mgr, cpu_coord, units, wb, fake_sched = self._build_stack(
+            dcp=2, pp=2, num_gpu_blocks=900, num_cpu_blocks=3200
+        )
+        self.assertIs(fake_sched.kv_cache_manager, kv_mgr)
+
+        rt = kv_host_tier_runtime.TierRuntime(
+            cpu_coord.block_pool, cpu_coord.block_pool.num_gpu_blocks, 0, 64
+        )
+        rt.units = units
+        rt.census.scheduler = fake_sched
+
+        hashes = _make_hashes(b"gauge-grace", 64)
+        req = _SimRequest("rgauge", hashes, num_tokens=2240, num_prompt_tokens=2200)
+        self._run_prefill_and_commit_gpu(kv_mgr, kv_mgr.block_pool.tier, req, 2240, step_start=1)
+        req.status = RequestStatus.FINISHED_STOPPED
+        kv_mgr.free(req)
+        self.assertEqual(kv_mgr.num_grace_pins, 1)
+
+        rt.refresh_gauges()
+        self.assertEqual(rt.counters.grace_pins_active, 1)
+
+    def test_cache_thrash_admission_enables_coherent_for_hy4_host_tier(self):
+        from vllm.v1.core import cache_thrash
+        from vllm.v1.core.kv_cache_manager import KVCacheManager
+        from vllm.v1.core.sched.scheduler import SchedulingPolicy
+
+        cfg = self._build_hy4_config(num_gpu_blocks=64, dcp=2, pp=2)
+        kv_mgr = KVCacheManager(
+            kv_cache_config=cfg,
+            max_model_len=8192,
+            scheduler_block_size=512,
+            hash_block_size=64,
+            enable_caching=True,
+            use_eagle=False,
+            dcp_world_size=2,
+            pcp_world_size=1,
+            causal_sliding_window_kv=True,
+        )
+
+        # Without host tier (tier_plans=None): MLA+SWA alone is not hybrid -> coherent stays False
+        sched_off = types.SimpleNamespace(
+            kv_cache_manager=kv_mgr,
+            kv_cache_config=cfg,
+            prefix_pins=True,
+            policy=SchedulingPolicy.FCFS,
+            tier_plans=None,
+        )
+        adm_off = cache_thrash.Admission(sched_off)
+        self.assertEqual(adm_off.miss_defer_s, 0)
+        self.assertFalse(kv_mgr.thrash.coherent)
+
+        # With host tier active (tier_plans present): coherent yields & young-miss defer turn on
+        sched_on = types.SimpleNamespace(
+            kv_cache_manager=kv_mgr,
+            kv_cache_config=cfg,
+            prefix_pins=True,
+            policy=SchedulingPolicy.FCFS,
+            tier_plans=object(),
+        )
+        adm_on = cache_thrash.Admission(sched_on)
+        self.assertGreater(adm_on.miss_defer_s, 0)
+        self.assertTrue(kv_mgr.thrash.coherent)
+
+    def test_running_sw_keys_retains_replay_boundary_under_eagle_and_retention_zero(self):
+        from vllm.merlin import kv_host_tier_units, kv_host_tier_writeback
+        from vllm.merlin import kv_restore_dependencies
+        from vllm.merlin.kv_tier_lookup import closure_alignment
+        from vllm.v1.core.kv_cache_coordinator import get_kv_cache_coordinator
+        from vllm.v1.core.kv_cache_manager import KVCacheManager
+        from vllm.v1.core.kv_cache_utils import make_block_hash_with_group_id
+
+        cfg = self._build_hy4_config(num_gpu_blocks=900, dcp=2, pp=2)
+        sched_bs = 512
+        kv_mgr = KVCacheManager(
+            kv_cache_config=cfg,
+            max_model_len=32768,
+            scheduler_block_size=sched_bs,
+            hash_block_size=64,
+            enable_caching=True,
+            use_eagle=True,
+            dcp_world_size=2,
+            pcp_world_size=1,
+            causal_sliding_window_kv=True,
+        )
+        cpu_cfg = copy.deepcopy(cfg)
+        cpu_coord = get_kv_cache_coordinator(
+            kv_cache_config=cpu_cfg,
+            max_model_len=32768,
+            max_in_flight_tokens=32768,
+            use_eagle=True,
+            enable_caching=True,
+            enable_kv_cache_events=False,
+            dcp_world_size=2,
+            pcp_world_size=1,
+            scheduler_block_size=sched_bs,
+            hash_block_size=64,
+            allow_partial_hash_hits=False,
+            causal_sliding_window_kv=True,
+        )
+        units = kv_host_tier_units.mount(
+            kv_mgr.block_pool,
+            cpu_coord.block_pool,
+            cpu_cfg,
+            cpu_cfg.prefix_cacheable_group_ids,
+            cpu_coord.group_block_sizes,
+            64,
+            cpu_coord.eagle_group_ids,
+            kv_restore_dependencies.fine_grained_group_ids(cpu_coord),
+            alignment_tokens=closure_alignment(cpu_coord, cpu_coord.scheduler_block_size),
+        )
+        self.assertEqual(
+            max(units.group_margin(g) for g in units.groups), 512
+        )
+
+        hashes = _make_hashes(b"sw_retain_eagle", 340)  # 21,760 tokens
+        swa_gid = 2
+
+        def swa_key(tok_end: int):
+            return make_block_hash_with_group_id(hashes[tok_end // 64 - 1], swa_gid)
+
+        # (1a) retention_interval=0: final EAGLE proof chunk still in progress
+        req_prefill = _SimRequest("prefill_fin", hashes, num_tokens=20600)
+        req_prefill.num_prompt_tokens = 20600
+        req_prefill.num_computed_tokens = 20224  # replay_boundary=19968, limit=19456
+        units.set_running_sw_keys([req_prefill], retention_interval=0)
+        for tok in range(19520, 19969, 64):
+            self.assertIn(swa_key(tok), units._running_sw_keys, f"missing tok={tok}")
+        self.assertNotIn(swa_key(19008), units._running_sw_keys)
+
+        # (1b) retention_interval=0: long decode past replay boundary (Test 3 shape)
+        req_decode = _SimRequest("long_dec", hashes, num_tokens=20862)
+        req_decode.num_prompt_tokens = 20162
+        req_decode.num_computed_tokens = 20862  # replay_boundary=19456, limit=19968
+        units.set_running_sw_keys([req_decode], retention_interval=0)
+        for tok in range(19008, 19457, 64):
+            self.assertIn(swa_key(tok), units._running_sw_keys, f"missing decode tok={tok}")
+        self.assertNotIn(swa_key(19968), units._running_sw_keys)
+
+        # (1c) retention_interval=0: shared_prefix_boundary retains B and B - step under EAGLE
+        req_shared = _SimRequest("shared", hashes, num_tokens=20600)
+        req_shared.num_prompt_tokens = 20600
+        req_shared.num_computed_tokens = 20224
+        req_shared.shared_prefix_boundary = 10240
+        units.set_running_sw_keys([req_shared], retention_interval=0)
+        for tok in range(9280, 9729, 64):
+            self.assertIn(swa_key(tok), units._running_sw_keys, f"missing shared-step tok={tok}")
+        for tok in range(9792, 10241, 64):
+            self.assertIn(swa_key(tok), units._running_sw_keys, f"missing shared tok={tok}")
+        for tok in range(19520, 19969, 64):
+            self.assertIn(swa_key(tok), units._running_sw_keys, f"missing replay tok={tok}")
+
+        # (2) retention_interval=None + use_eagle=True: retains limit and in-progress limit+step
+        req_dense = _SimRequest("dense", hashes, num_tokens=21000)
+        req_dense.num_prompt_tokens = 21000
+        req_dense.num_computed_tokens = 20224  # limit=19456, limit+step=19968 <= 20224
+        units.set_running_sw_keys([req_dense], retention_interval=None)
+        for tok in range(19008, 19969, 64):
+            self.assertIn(swa_key(tok), units._running_sw_keys, f"dense missing tok={tok}")
+        req_dense.num_computed_tokens = 20800  # limit=19968, limit+step=20480 <= 20800
+        units.set_running_sw_keys([req_dense], retention_interval=None)
+        self.assertNotIn(swa_key(19008), units._running_sw_keys)
+        for tok in range(19520, 20481, 64):
+            self.assertIn(swa_key(tok), units._running_sw_keys, f"dense adv missing tok={tok}")
+
+        # (3) retention_interval=4096 + use_eagle=True: periodic checkpoint + replay boundary
+        req_ri = _SimRequest("ri", hashes, num_tokens=20600)
+        req_ri.num_prompt_tokens = 20600
+        req_ri.num_computed_tokens = 16384  # limit=15872 -> ri_b=12288, ri_b+4096=16384 <= 16384
+        units.set_running_sw_keys([req_ri], retention_interval=4096)
+        for tok in (*range(11840, 12289, 64), *range(15936, 16385, 64)):
+            self.assertIn(swa_key(tok), units._running_sw_keys, f"ri missing tok={tok}")
+        self.assertNotIn(swa_key(19968), units._running_sw_keys)
+        req_ri.num_computed_tokens = 20224  # ri_b=16384 and replay_boundary=19968
+        units.set_running_sw_keys([req_ri], retention_interval=4096)
+        for tok in (*range(15936, 16385, 64), *range(19520, 19969, 64)):
+            self.assertIn(swa_key(tok), units._running_sw_keys, f"ri fin missing tok={tok}")
+        self.assertNotIn(swa_key(11840), units._running_sw_keys)
+
+        # (4) WriteBack.note_frontiers passes coordinator.retention_interval
+        wb = kv_host_tier_writeback.WriteBack(
+            cpu_coord.block_pool,
+            cpu_cfg.prefix_cacheable_group_ids,
+            reserve_blocks=16,
+            alignment_groups=len(cpu_cfg.prefix_cacheable_group_ids),
+            world_size=1,
+        )
+        wb.bind(kv_mgr.block_pool, units)
+        kv_mgr.coordinator.retention_interval = 0
+        req_decode.num_computed_tokens = 20862
+        wb.note_frontiers(kv_mgr.coordinator, [req_decode], num_scheduled={})
+        for tok in range(19008, 19457, 64):
+            self.assertIn(swa_key(tok), units._running_sw_keys)
+
     def test_recurrent_mamba_fa_backward_compat(self):
         from vllm.merlin import kv_host_tier_units, kv_restore_dependencies
         from vllm.v1.core.kv_cache_coordinator import get_kv_cache_coordinator
@@ -1304,7 +1699,9 @@ class TestHy4ModelAndDFlyExemptions(unittest.TestCase):
     def setUpClass(cls):
         ensure_vllm_stubs()
 
-    def _make_vllm_config(self, connector: str | None, *, active_tier: bool):
+    def _make_vllm_config(
+        self, connector: str | None, *, active_tier: bool, dtype: object = "bfloat16"
+    ):
         from vllm.merlin import kv_host_tier
 
         ktc = None
@@ -1331,7 +1728,7 @@ class TestHy4ModelAndDFlyExemptions(unittest.TestCase):
         )
         return types.SimpleNamespace(
             model_config=types.SimpleNamespace(
-                hf_config=hf_cfg, hf_text_config=hf_cfg, dtype="bfloat16", quantization="fp8"
+                hf_config=hf_cfg, hf_text_config=hf_cfg, dtype=dtype, quantization="fp8"
             ),
             cache_config=types.SimpleNamespace(block_size=64, cache_dtype="fp8_ds_mla"),
             parallel_config=types.SimpleNamespace(
@@ -1365,8 +1762,16 @@ class TestHy4ModelAndDFlyExemptions(unittest.TestCase):
             mock.patch.object(hy4_model, "validate_hy4_dcp"),
             mock.patch.object(hy4_model, "check_dfly_stage"),
         ):
-            tier_cfg = self._make_vllm_config("MerlinKVHostTierConnector", active_tier=True)
-            pd_cfg = self._make_vllm_config("NixlConnector", active_tier=False)
+            tier_cfg = self._make_vllm_config(
+                "MerlinKVHostTierConnector",
+                active_tier=True,
+                dtype=hy4_model.torch.bfloat16,
+            )
+            pd_cfg = self._make_vllm_config(
+                "NixlConnector",
+                active_tier=False,
+                dtype=hy4_model.torch.bfloat16,
+            )
             hy4_model.validate_runtime(tier_cfg)
             with self.assertRaisesRegex(ValueError, "LoRA or KV transfer"):
                 hy4_model.validate_runtime(pd_cfg)

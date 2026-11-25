@@ -146,3 +146,11 @@ def has_pending_block_frees(manager: Any) -> bool:
         or manager._abandoned_reqs_to_load
         or any(s.finished for s in manager._reqs_to_load.values())
     )
+
+
+def has_pending_push_work(manager: Any) -> bool:
+    """Keep the scheduler stepping for active transfers and bounded idle drain."""
+    if manager.has_pending_stores():
+        return True
+    wb = getattr(manager, "writeback", None)
+    return wb is not None and wb.has_pending_idle_work()

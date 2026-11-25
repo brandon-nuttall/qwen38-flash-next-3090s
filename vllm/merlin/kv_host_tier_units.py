@@ -1389,23 +1389,29 @@ class UnitTable:
         requests: Sequence[Request],
         *,
         num_scheduled: Mapping[str, int] | None = None,
+        retention_interval: int | None = None,
     ) -> None:
         """Refresh the set of sliding-window keys needed by running (and
-        KV-holding) requests' current prospective restore boundaries.
+        KV-holding) requests' retainable and prospective restore boundaries.
 
         On layouts whose alignment exceeds a sliding-window block size (e.g.,
         Hy4 Flash ``alignment=512`` vs ``SWA block=64``), decode / chunked
-        prefill frees SWA blocks below ``computed - window`` before reaching
-        the next aligned boundary. Retaining those blocks until the request
-        advances to the next aligned boundary or finishes ensures the unit can
-        still be recorded completely at finish/preemption.
+        prefill frees SWA blocks below ``computed - window``. Under sparse
+        retention (``retention_interval == 0``), cached prompt replay and
+        shared-prefix boundaries remain the unit boundaries recorded at
+        finish/preemption even when decode advances past them or an EAGLE
+        proof chunk is still in progress. Retaining those boundaries' SWA
+        dependency windows ensures units stay complete and prevents freed SWA
+        blocks from being misclassified as unretained.
         """
         if not self._sliding:
             return
         from vllm.merlin.kv_restore_dependencies import group_dependency_pages
+        from vllm.v1.core.kv_cache_coordinator import replay_boundaries
 
         hbs = self.hash_block_size
         step = self.alignment_tokens
+        use_eagle = any(g.eagle for g in self.groups)
         max_margin = max((self.group_margin(g) for g in self.groups), default=0)
         keep: set[BlockHashWithGroupId] = set()
         for req in requests:
@@ -1421,32 +1427,75 @@ class UnitTable:
                     projected = min(projected, int(num_tokens))
                 computed = projected
             chain = len(block_hashes) * hbs
-            limit = min(computed, chain) - max_margin
+            avail = min(computed, chain)
+            limit = max(0, avail - max_margin)
             limit -= limit % step
-            if limit <= 0:
+
+            candidates: set[int] = set()
+            if retention_interval is not None:
+                num_prompt = int(getattr(req, "num_prompt_tokens", 0) or 0)
+                if num_prompt > 0:
+                    for rb in replay_boundaries(
+                        num_prompt, step, use_eagle=use_eagle
+                    ):
+                        aligned = rb // step * step
+                        if 0 < aligned <= avail:
+                            candidates.add(aligned)
+                shared = int(getattr(req, "shared_prefix_boundary", 0) or 0)
+                if shared > 0:
+                    aligned_shared = shared // step * step
+                    if 0 < aligned_shared <= avail:
+                        candidates.add(aligned_shared)
+                    if (
+                        use_eagle
+                        and aligned_shared - step > 0
+                        and aligned_shared - step <= avail
+                    ):
+                        candidates.add(aligned_shared - step)
+
+            if retention_interval is None:
+                if limit > 0:
+                    candidates.add(limit)
+                if max_margin > 0 and limit + step <= avail:
+                    candidates.add(limit + step)
+            elif retention_interval > 0:
+                ri_b = limit // retention_interval * retention_interval
+                if ri_b > 0:
+                    candidates.add(ri_b)
+                if max_margin > 0 and ri_b + retention_interval <= avail:
+                    candidates.add(ri_b + retention_interval)
+
+            if not candidates:
                 continue
-            for g in self._sliding:
-                gid, size = g.group_id, g.block_size
-                margin = self.group_margin(g)
-                reach = limit + margin
-                if reach > chain:
-                    continue
-                data, proof = group_dependency_pages(
-                    "sliding",
-                    limit,
-                    size,
-                    sliding_window=g.sliding_window,
-                    extra_retained_tokens=g.extra_retained_tokens,
-                    margin=margin,
-                )
-                for page in (*data, *proof):
-                    end = (page + 1) * size
-                    if end <= reach:
-                        keep.add(unit_key(block_hashes, hbs, end, gid))
-                    else:
-                        keep.add(
-                            self._covering_key(block_hashes, reach, size, gid)
-                        )
+
+            for b in candidates:
+                for g in self._sliding:
+                    gid, size = g.group_id, g.block_size
+                    margin = self.group_margin(g)
+                    data, proof = group_dependency_pages(
+                        "sliding",
+                        b,
+                        size,
+                        sliding_window=g.sliding_window,
+                        extra_retained_tokens=g.extra_retained_tokens,
+                        margin=margin,
+                    )
+                    for page in data:
+                        end = (page + 1) * size
+                        if end <= chain:
+                            keep.add(unit_key(block_hashes, hbs, end, gid))
+                    if b + margin <= chain:
+                        g_reach = b + margin
+                        for page in proof:
+                            end = (page + 1) * size
+                            if end <= g_reach:
+                                keep.add(unit_key(block_hashes, hbs, end, gid))
+                            else:
+                                keep.add(
+                                    self._covering_key(
+                                        block_hashes, g_reach, size, gid
+                                    )
+                                )
         self._running_sw_keys = frozenset(keep)
 
     def retains(self, block: KVCacheBlock) -> bool:

@@ -382,6 +382,20 @@ class CopyQueue:
             return "complete"
         return self._unit_state(self._grace_unit(request_id))
 
+    def has_dirty_grace(self) -> bool:
+        """Whether any non-tiny grace-pinned turn still needs copies."""
+        if self.manager is None or self._units is None:
+            return False
+        for rid in list(getattr(self.manager, "_grace_pins", ())):
+            unit = self._grace_unit(rid)
+            if (
+                unit is not None
+                and not self._tiny(unit)
+                and self._unit_state(unit) == "dirty"
+            ):
+                return True
+        return False
+
     def may_wait_for(self, request_id: str) -> bool:
         """Host-aware yield: True while a session whose copy is in flight may
         still be held back (bounded by YIELD_WAIT_STEPS and YIELD_WAIT_S)."""
@@ -519,8 +533,9 @@ class CopyQueue:
     ) -> list[CopyOffer]:
         """Offers to issue this step, highest priority first. The walker
         re-checks every member and the budget when it accepts them; offers
-        past the budget are dropped here except the first one when nothing
-        is in flight (a unit larger than the credits must still progress)."""
+        past the budget are dropped here except the first one when no unit is
+        already queued in ``wb.backlog`` and D2H credits are free (an oversized
+        unit still starts under pipelined in-flight DMA)."""
         wb = self.wb
         units = self._units
         if units is None or wb.gpu_pool is None:
@@ -529,7 +544,11 @@ class CopyQueue:
         out: list[CopyOffer] = []
         rows_left = rows_budget
         bytes_left = bytes_budget
-        lone_ok = not wb.in_flight and not busy
+        lone_ok = (
+            not wb.backlog
+            and rows_left > 0
+            and (bytes_budget <= 0 or bytes_left > 0)
+        )
 
         def add(offer: CopyOffer | None) -> bool:
             nonlocal rows_left, bytes_left, lone_ok

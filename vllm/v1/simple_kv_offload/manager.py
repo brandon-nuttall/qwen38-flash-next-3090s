@@ -380,6 +380,7 @@ class SimpleCPUOffloadScheduler:
             vllm_config.parallel_config.world_size
         )
         self._sched_step = 0
+        self.kv_cache_manager: Any = None
         self._masked_pruned = 0
         # Lifecycle hooks (the copy
         # scheduler); None until ``install_tier_hooks``.
@@ -422,13 +423,19 @@ class SimpleCPUOffloadScheduler:
                 align,
                 vllm_config.parallel_config.world_size,
             )
+            self.writeback.apply_layout_credit_defaults(
+                kv_host_tier.host_block_bytes(self.cpu_kv_cache_config),
+                vllm_config.parallel_config.pipeline_parallel_size,
+                kv_cache_config.num_blocks,
+            )
             logger.info(
                 "host-RAM KV tier: write-back, reserve R=%d blocks (+%d per "
                 "running request), host LRU, "
-                "copy credits P=%d, escape after %d steps",
+                "copy credits P=%d (D=%d), escape after %d steps",
                 reserve,
                 align,
                 self.writeback.credits_cap,
+                self.writeback.credits_d,
                 self.writeback.escape_after,
             )
             # The walker's counters
@@ -591,6 +598,7 @@ class SimpleCPUOffloadScheduler:
 
     def bind_kv_cache_manager(self, kv_cache_manager: Any) -> None:
         """Install the write-back admission gate."""
+        self.kv_cache_manager = kv_cache_manager
         if self.writeback is not None:
             kv_cache_manager.admission_gate = self.writeback.admit
             kv_cache_manager.running_headroom_hook = self.writeback.account_running
