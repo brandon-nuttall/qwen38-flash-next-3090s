@@ -569,7 +569,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--ple-store", choices=PS.STORES, default=None,
                     help="Flash-Next: where the PLE table lives, ram (the default) or disk (experimental: read from the checkpoint's own files, "
                     "which frees the table's host RAM, but first reads are much slower). Asked after the models folder when it is on local NVMe")
-    ap.add_argument("--kv-ram-cache", metavar="SIZE", help="Flash-Next (experimental, MTP only), 27B (experimental) and Ornith 1.5 (untested): a host-RAM cache for prefix KV blocks the GPU pool "
+    ap.add_argument("--kv-ram-cache", metavar="SIZE", help="Flash-Next (experimental, MTP only), 27B (experimental), Ornith 1.5 (untested) and Hy4 Flash (experimental, untested on hardware): a host-RAM cache for prefix KV blocks the GPU pool "
                     "evicts (restored instead of recomputed; adds no context and does not change the session cap (--swarm does); RAM only, never disk; ~66K tokens/GiB on Flash-Next TP2xPP2; needs memlock: LimitMEMLOCK=infinity or ulimit -l unlimited). SIZE = "
                     "host RAM per server (24g, 24gib or 24 = GiB; 0 = off, the default), split over its TP x PP ranks (rounded down to whole GiB per rank)")
     ap.add_argument("--context", type=L.C.parse_size, metavar="SIZE",
@@ -636,12 +636,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         raise SetupError(f"--ple int6 applies to the Flash-Next family only, not {args.model}", 2)
     if args.model and not fn_family(args.model) and args.ple_store == "disk":
         raise SetupError(f"--ple-store disk applies to the Flash-Next family only, not {args.model}", 2)
-    # Not supported on Hy4 Flash yet (0 = off is accepted)
-    if args.model == H.MODEL and args.kv_ram_cache_gib:
-        raise SetupError(f"--kv-ram-cache {args.kv_ram_cache}: {L.HY4_KV_TIER_UNSUPPORTED}", 2)
     no_tier = args.model and args.model != H.MODEL and not tier_family(args.model)
     if no_tier and args.kv_ram_cache_gib:
-        raise SetupError(f"--kv-ram-cache applies to the Flash-Next family, the 27B and Ornith 1.5 only, not {args.model}", 2)
+        raise SetupError(f"--kv-ram-cache applies to the Flash-Next family, the 27B, Ornith 1.5 and Hy4 Flash only, not {args.model}", 2)
     if args.swarm:
         if args.model and not swarm_family(args.model):
             raise SetupError(f"--swarm applies to the Flash-Next family and the 27B only, not {args.model}", 2)
@@ -2999,8 +2996,7 @@ def hy4_flag_problem(args: argparse.Namespace) -> str | None:
     return (
         f"{', '.join(given)}: not for {H.MODEL}, whose row follows the card count "
         f"({H.supported_text()}) and is served as the profile has it; --models-dir, "
-        "--host, --api-key and --port apply (the KV RAM cache is not supported on "
-        "Hy4 Flash yet)"
+        "--host, --api-key, --port, --engram and --kv-ram-cache apply"
     )
 
 
@@ -3035,14 +3031,9 @@ def hy4_main(
     bad = hy4_flag_problem(args)
     if bad:
         raise SetupError(bad, 2)
-    # Refuse an exported SWARM=1 / MERLIN_KV_HOST_TIER_GIB or a
-    # cache size from the menu here, before the row knobs are stripped from the environment.
-    try:
-        L._hy4_refuse_kv_tier(env)
-    except L.LaunchError as e:
-        raise SetupError(str(e), e.code) from None
-    if a.kv_ram_cache_gib or getattr(args, "kv_ram_cache_gib", None):
-        raise SetupError(f"--kv-ram-cache: {L.HY4_KV_TIER_UNSUPPORTED}", 2)
+    # Refuse an exported SWARM=1 here before the row knobs are stripped from the environment.
+    if L.swarm_requested(env):
+        raise SetupError(L.swarm_not_qualified(H.MODEL), 2)
     merlin_dir = repo / ".merlin"
     reg = H.registry()
     a.model = H.MODEL
@@ -3087,22 +3078,35 @@ def hy4_main(
 
     problems: list[Problem] = []
     # GiB per server, split over the row's ranks (whole GiB per rank)
-    tier_total = args.kv_ram_cache_gib or 0
+    tier_total = (
+        args.kv_ram_cache_gib
+        if args.kv_ram_cache_gib is not None
+        else (a.kv_ram_cache_gib or 0)
+    )
     per_rank = tier_total // n_ranks
-    if tier_total and not per_rank:
+    minimum = R.restore_unit_min_gib_per_rank(H.MODEL, prof, n_ranks)
+    if tier_total and per_rank < minimum:
         problems.append(
             Problem(
                 "FAIL",
                 "kv-ram-cache",
-                f"--kv-ram-cache {tier_total}g is under 1 GiB per rank over the "
-                f"{n_ranks} ranks of {prof['id']}",
-                "a larger --kv-ram-cache, or 0 (off)",
+                f"--kv-ram-cache {tier_total}g is {per_rank} GiB per rank over the "
+                f"{n_ranks} ranks of {prof['id']}; one 262K restore unit needs at "
+                f"least {minimum} GiB per rank ({minimum * n_ranks}g per server)",
+                f"--kv-ram-cache {minimum * n_ranks}g or larger, or 0 (off)",
             )
+        )
+    plan_per_rank = per_rank if per_rank >= minimum else 0
+    if plan_per_rank:
+        ui.row(
+            "KV RAM cache",
+            f"{plan_per_rank * n_ranks}g per server ({plan_per_rank} GiB per rank, "
+            "experimental/untested on hardware)",
         )
     have, what = ram_budget(inv)
     checks = (
-        H.ram_check(have, what, per_rank * n_ranks, len(inv.gpus), engram),
-        H.memlock_check(*H.memlock_limit(inv), per_rank, engram),
+        H.ram_check(have, what, plan_per_rank * n_ranks, len(inv.gpus), engram),
+        H.memlock_check(*H.memlock_limit(inv), plan_per_rank, engram),
     )
     for c in checks:
         if c:
@@ -3174,7 +3178,7 @@ def hy4_main(
         problems.append(dirty)
     problems += disk_problems(plan, disk_free_for(inv))
 
-    lenv = H.launch_env(a.host, a.port, a.api_key, per_rank, engram)
+    lenv = H.launch_env(a.host, a.port, a.api_key, plan_per_rank, engram)
     run_env = H.launcher_environ({**lenv, "MERLIN_HOME": str(repo)}, env)
     lplan = None
     try:
@@ -3186,7 +3190,7 @@ def hy4_main(
     ui.gap()
     ui.say(render_plan(plan, args.dry_run, ui.color, ui.width).rstrip("\n"))
     ui.section("Serve", "(launch.py --profile: merlin serve does not list hy4flash)")
-    for line in shell_wrap(hy4_words(a, repo, prof["id"], per_rank, engram), ui.width):
+    for line in shell_wrap(hy4_words(a, repo, prof["id"], plan_per_rank, engram), ui.width):
         ui.say(line)
     notes: list[str] = []
     if lplan is not None:

@@ -17,6 +17,7 @@ from vllm.distributed import (
 )
 from vllm.forward_context import get_forward_context
 
+from vllm.merlin import kv_host_tier
 from vllm.merlin.hy4_kvshard import validate_hy4_dcp
 from vllm.merlin.hy4flash_pp import (
     check_dfly_stage,
@@ -85,9 +86,9 @@ def validate_runtime(vllm_config):
         raise NotImplementedError("HYV4 Flash serving requires NVIDIA CUDA")
     if vllm_config.model_config.dtype != torch.bfloat16:
         raise ValueError("HYV4 Flash requires bfloat16 compute")
-    if (
-        vllm_config.lora_config is not None
-        or vllm_config.kv_transfer_config is not None
+    if vllm_config.lora_config is not None or (
+        vllm_config.kv_transfer_config is not None
+        and not kv_host_tier.is_active(vllm_config)
     ):
         raise ValueError("This Flash port does not support LoRA or KV transfer")
     speculative = vllm_config.speculative_config

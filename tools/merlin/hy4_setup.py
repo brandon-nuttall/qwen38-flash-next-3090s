@@ -57,8 +57,8 @@ PACK_BYTES_BF16 = 214_640_000_000
 # Host RAM. The Engram tables are pinned in host RAM; the engine processes take about
 # 18 GiB beside them; the 4-card FP8 boots needed this much available (MemAvailable)
 # before the start, and BF16 adds its tables' difference from FP8
-# (launch.hy4_ram_need_gib). The KV RAM cache would come on top; it is refused on Hy4
-# Flash for now, so the size terms below stay at 0.
+# (launch.hy4_ram_need_gib). The KV RAM cache (--kv-ram-cache / MERLIN_KV_HOST_TIER_GIB)
+# adds on top of that host RAM requirement via launch.hy4_ram_need_gib.
 ENGRAM_FP8_GIB = L.HY4_ENGRAM_GIB["fp8"]
 ENGRAM_BF16_GIB = L.HY4_ENGRAM_GIB["bf16"]
 ENGINE_PROCS_GIB = L.HY4_ENGINE_PROCS_GIB
@@ -430,9 +430,7 @@ def serve_hints(dfly_on: bool, engram: str = ENGRAM_DEFAULT) -> list[str]:
         "DFly2 speculative decoding is on by default (SPEC_K sets K); DFLY=0 in the "
         "server's environment turns it off"
         if dfly_on
-        else "DFly2 speculative decoding is on by default but off here: the KV RAM "
-        "cache keeps it off; DFLY=0 turns it off "
-        "explicitly"
+        else "DFly2 speculative decoding is on by default but off here (DFLY=0)"
     )
     # The other pack, named
     if engram == ENGRAM_DEFAULT:

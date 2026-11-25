@@ -41,6 +41,7 @@ from vllm.config.compilation import CUDAGraphMode
 from vllm.distributed import get_pp_group
 from vllm.forward_context import BatchDescriptor, set_forward_context
 from vllm.logger import init_logger
+from vllm.merlin import kv_host_tier
 from vllm.model_executor.layers.vocab_parallel_embedding import VocabParallelEmbedding
 from vllm.model_executor.model_loader import get_model
 from vllm.model_executor.model_loader.utils import get_draft_load_config
@@ -140,7 +141,10 @@ class HYV4DFlySpeculator(DraftModelSpeculator):
                 "DFly draft and target must use the same MLA KV cache dtype; "
                 "omit speculative_config.kv_cache_dtype to inherit the target"
             )
-        if vllm_config.kv_transfer_config is not None:
+        if (
+            vllm_config.kv_transfer_config is not None
+            and not kv_host_tier.is_active(vllm_config)
+        ):
             raise ValueError("DFly does not support PD disaggregation")
         if (
             vllm_config.lora_config is not None

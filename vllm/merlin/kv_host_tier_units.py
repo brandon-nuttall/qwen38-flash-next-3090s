@@ -38,7 +38,7 @@ from __future__ import annotations
 import bisect
 import heapq
 from collections import OrderedDict
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -601,6 +601,7 @@ class UnitTable:
         host_pool: BlockPool,
         groups: Sequence[GroupInfo],
         hash_block_size: int,
+        alignment_tokens: int | None = None,
     ) -> None:
         from vllm.merlin.envs import read_registered
 
@@ -614,11 +615,26 @@ class UnitTable:
             self._diag = False
         self.groups = list(groups)
         self.hash_block_size = hash_block_size
+        self.alignment_tokens = (
+            hash_block_size if alignment_tokens is None else alignment_tokens
+        )
+        assert (
+            self.alignment_tokens > 0
+            and self.alignment_tokens % hash_block_size == 0
+        ), (
+            f"alignment_tokens ({self.alignment_tokens}) must be a positive "
+            f"multiple of hash_block_size ({hash_block_size})"
+        )
         self._recurrent = [g for g in self.groups if g.kind is GroupKind.RECURRENT]
         self._full = [g for g in self.groups if g.kind is GroupKind.FULL]
         assert self._full, "a restore unit needs a full-attention group"
         self._kind = {g.group_id: g.kind for g in self.groups}
         self._sliding = [g for g in self.groups if g.kind is GroupKind.SLIDING]
+        # Sliding-window keys inside running (and KV-holding) requests'
+        # current aligned boundaries, refreshed each scheduler step so decoded
+        # SWA blocks freed between coarse aligned boundaries remain restore
+        # dependencies until the request advances past them or finishes.
+        self._running_sw_keys: frozenset[BlockHashWithGroupId] = frozenset()
         # Host victims are chosen by class (idle -> running-twin
         # duplicates -> LRU of host use ->
         # imminent twins) over each unit's EXCLUSIVE rows; shared rows stay
@@ -991,12 +1007,23 @@ class UnitTable:
 
     # -- recording --------------------------------------------------------------
 
+    def _anchor_present(
+        self, block_hashes: Sequence, tokens: int, g: GroupInfo
+    ) -> bool:
+        key = unit_key(block_hashes, self.hash_block_size, tokens, g.group_id)
+        if g.kind is GroupKind.FULL and tokens % g.block_size != 0:
+            key = self._covering_key(
+                block_hashes, tokens, g.block_size, g.group_id
+            )
+        return self._present(key)
+
     def _find_boundary(self, block_hashes: Sequence, limit: int) -> int:
-        hbs = self.hash_block_size
-        anchor = self._recurrent or self._full[:1]
-        for tokens in range(limit, 0, -hbs):
+        step = self.alignment_tokens
+        limit -= limit % step
+        anchor = self._recurrent or self._full
+        for tokens in range(limit, 0, -step):
             if all(
-                self._present(unit_key(block_hashes, hbs, tokens, g.group_id))
+                self._anchor_present(block_hashes, tokens, g)
                 for g in anchor
             ):
                 return tokens
@@ -1082,6 +1109,45 @@ class UnitTable:
                     required[self._covering_key(block_hashes, reach, size, gid)] = None
         return required.keys(), endpoints.keys(), {}.keys()
 
+    def _missing_lower_bound(
+        self, block_hashes: Sequence, boundary: int
+    ) -> int:
+        """Largest token bound below ``boundary`` not ruled out by an absent
+        required key (a missing page starting at ``page * size`` makes every
+        boundary above ``page * size`` fail until below it)."""
+        from vllm.merlin.kv_restore_dependencies import group_dependency_pages
+
+        hbs = self.hash_block_size
+        chain = len(block_hashes) * hbs
+        bound = max(0, boundary - self.alignment_tokens)
+        for g in self.groups:
+            if g.kind is GroupKind.RECURRENT:
+                continue
+            gid, size = g.group_id, g.block_size
+            margin = self.group_margin(g)
+            reach = boundary + margin
+            if reach > chain:
+                continue
+            data, proof = group_dependency_pages(
+                "full" if g.kind is GroupKind.FULL else "sliding",
+                boundary,
+                size,
+                sliding_window=g.sliding_window,
+                extra_retained_tokens=g.extra_retained_tokens,
+                margin=margin,
+            )
+            for page in (*data, *proof):
+                end = (page + 1) * size
+                if end <= reach:
+                    key = unit_key(block_hashes, hbs, end, gid)
+                else:
+                    key = self._covering_key(block_hashes, reach, size, gid)
+                if not self._present(key):
+                    bound = min(bound, page * size)
+                    if bound <= 0:
+                        return 0
+        return bound
+
     def manifest(self, request: Request) -> UnitManifest | Incomplete | None:
         """The manifest of ``request``'s deepest restore boundary as the
         directory proves it now: what ``record_finished`` records. Read-only:
@@ -1090,35 +1156,52 @@ class UnitTable:
         proof lies past the hash chain or a required key is absent."""
         block_hashes = request.block_hashes
         hbs = self.hash_block_size
+        step = self.alignment_tokens
         limit = min(request.num_computed_tokens, len(block_hashes) * hbs)
         # An EAGLE group proves B + margin: the accepted boundary leaves room
         # for its proof inside the keyed chain.
         limit -= max((self.group_margin(g) for g in self.groups), default=0)
-        limit -= limit % hbs
+        limit -= limit % step
         if limit <= 0:
             return None
         boundary = self._find_boundary(block_hashes, limit)
         if boundary == 0:
             return None
-        try:
-            required, endpoints, optional = self._required_keys(
-                block_hashes, boundary
-            )
-        except _ProofBeyondChain:
-            return INCOMPLETE
-        if not all(self._present(k) for k in required):
-            return INCOMPLETE
-        present_optional = [k for k in optional if self._present(k)]
-        order = (*required, *(k for k in present_optional if k not in required))
-        required = frozenset(required)
-        return UnitManifest(
-            boundary,
-            required,
-            frozenset(endpoints),
-            frozenset(present_optional),
-            self._recorded_uid(required),
-            order,
-        )
+        cand = boundary
+        saw_anchor = False
+        while cand > 0:
+            saw_anchor = True
+            next_limit = max(0, cand - step)
+            try:
+                required, endpoints, optional = self._required_keys(
+                    block_hashes, cand
+                )
+            except _ProofBeyondChain:
+                required = None
+            if required is not None:
+                if all(self._present(k) for k in required):
+                    present_optional = [k for k in optional if self._present(k)]
+                    order = (
+                        *required,
+                        *(k for k in present_optional if k not in required),
+                    )
+                    required_fs = frozenset(required)
+                    return UnitManifest(
+                        cand,
+                        required_fs,
+                        frozenset(endpoints),
+                        frozenset(present_optional),
+                        self._recorded_uid(required_fs),
+                        order,
+                    )
+                if not self._recurrent and self._sliding:
+                    next_limit = min(
+                        next_limit, self._missing_lower_bound(block_hashes, cand)
+                    )
+            if self._recurrent or not self._sliding:
+                return INCOMPLETE
+            cand = self._find_boundary(block_hashes, next_limit)
+        return INCOMPLETE if saw_anchor else None
 
     def _recorded_uid(self, required: frozenset) -> int | None:
         """The recorded unit whose required keys are exactly ``required``
@@ -1160,8 +1243,10 @@ class UnitTable:
         # a covering key inside that page; the next turn keys the same page
         # whole, under another key. So an older unit is also a prefix of this
         # turn when each of its non-endpoint keys this unit lacks is a
-        # full-attention key on this request's own hash chain below this
-        # boundary. Sliding-window keys still need exact containment.
+        # full-attention or sliding-window key on this request's own hash
+        # chain below this boundary (for SWA-hybrid models like Hy4 Flash,
+        # later turns shift their retained SWA window forward while remaining a
+        # strict continuation of the prefix).
         # The deepest such prefix (the immediate predecessor) is kept, so a
         # retry, regenerate or sibling of the last turn still restores at its
         # boundary; it is superseded by the turn after.
@@ -1277,12 +1362,15 @@ class UnitTable:
     ) -> bool:
         """``old`` is a prefix of the request ``unit`` was recorded from: a
         shorter boundary, and every non-endpoint key of ``old`` that ``unit``
-        lacks is a full-attention key whose hash is on ``chain`` (that
-        request's hashes below ``unit``'s boundary)."""
+        lacks is a full-attention or sliding-window key whose hash is on
+        ``chain`` (that request's hashes below ``unit``'s boundary)."""
         return old.boundary < unit.boundary and all(
             k in unit.keys
-            or (self._kind.get(get_group_id(k)) is GroupKind.FULL
-                and get_block_hash(k) in chain)
+            or (
+                self._kind.get(get_group_id(k))
+                in (GroupKind.FULL, GroupKind.SLIDING)
+                and get_block_hash(k) in chain
+            )
             for k in old.keys - old.endpoints
         )
 
@@ -1296,15 +1384,81 @@ class UnitTable:
         self.counters.supersede_completed += 1
         self._drop_unit(pred)
 
+    def set_running_sw_keys(
+        self,
+        requests: Sequence[Request],
+        *,
+        num_scheduled: Mapping[str, int] | None = None,
+    ) -> None:
+        """Refresh the set of sliding-window keys needed by running (and
+        KV-holding) requests' current prospective restore boundaries.
+
+        On layouts whose alignment exceeds a sliding-window block size (e.g.,
+        Hy4 Flash ``alignment=512`` vs ``SWA block=64``), decode / chunked
+        prefill frees SWA blocks below ``computed - window`` before reaching
+        the next aligned boundary. Retaining those blocks until the request
+        advances to the next aligned boundary or finishes ensures the unit can
+        still be recorded completely at finish/preemption.
+        """
+        if not self._sliding:
+            return
+        from vllm.merlin.kv_restore_dependencies import group_dependency_pages
+
+        hbs = self.hash_block_size
+        step = self.alignment_tokens
+        max_margin = max((self.group_margin(g) for g in self.groups), default=0)
+        keep: set[BlockHashWithGroupId] = set()
+        for req in requests:
+            block_hashes = getattr(req, "block_hashes", None)
+            if not block_hashes:
+                continue
+            computed = int(getattr(req, "num_computed_tokens", 0) or 0)
+            if num_scheduled:
+                sched = int(num_scheduled.get(req.request_id, 0) or 0)
+                num_tokens = getattr(req, "num_tokens", None)
+                projected = computed + sched
+                if num_tokens is not None:
+                    projected = min(projected, int(num_tokens))
+                computed = projected
+            chain = len(block_hashes) * hbs
+            limit = min(computed, chain) - max_margin
+            limit -= limit % step
+            if limit <= 0:
+                continue
+            for g in self._sliding:
+                gid, size = g.group_id, g.block_size
+                margin = self.group_margin(g)
+                reach = limit + margin
+                if reach > chain:
+                    continue
+                data, proof = group_dependency_pages(
+                    "sliding",
+                    limit,
+                    size,
+                    sliding_window=g.sliding_window,
+                    extra_retained_tokens=g.extra_retained_tokens,
+                    margin=margin,
+                )
+                for page in (*data, *proof):
+                    end = (page + 1) * size
+                    if end <= reach:
+                        keep.add(unit_key(block_hashes, hbs, end, gid))
+                    else:
+                        keep.add(
+                            self._covering_key(block_hashes, reach, size, gid)
+                        )
+        self._running_sw_keys = frozenset(keep)
+
     def retains(self, block: KVCacheBlock) -> bool:
-        """SW pages are retained only in a recorded boundary's dependency
-        window. The manifest already includes its data and proof pages;
-        running requests need no incremental endpoint scan here."""
+        """SW pages are retained in a recorded boundary's dependency window or
+        inside a running request's current prospective boundary window."""
         key = block.block_hash
         if key is None or self._kind.get(get_group_id(key)) is not GroupKind.SLIDING:
             return True
+        running_sw = self._running_sw_keys
         return any(
-            self._key_units.get(k) for k in self._keys_of(self.gpu_pool, block)
+            self._key_units.get(k) or k in running_sw
+            for k in self._keys_of(self.gpu_pool, block)
         )
 
     def hold_unpublished(self, cpu_blocks: Iterable[KVCacheBlock]) -> None:
@@ -3858,6 +4012,7 @@ class UnitTable:
         self._bump_gpu()
         self._reclaiming = None
         self._pending_unhashed.clear()
+        self._running_sw_keys = frozenset()
         self._loss_cause = "race"
         try:
             for key in list(self._key_units):
@@ -3946,6 +4101,7 @@ class UnitTable:
         self._df_reclaimer.clear()
         self.policy.clear()
         self._cand_cache = None
+        self._running_sw_keys = frozenset()
         self._bump("clear", full=True)
 
 
@@ -3999,6 +4155,7 @@ def mount(
     hash_block_size: int,
     eagle_group_ids: Iterable[int] = (),
     fine_group_ids: Iterable[int] | None = None,
+    alignment_tokens: int | None = None,
 ) -> UnitTable:
     """Mount the unified tier on ``gpu_pool``: its ``BlockTierState``
     (``gpu_pool.tier``) with the unit table as listener."""
@@ -4013,6 +4170,7 @@ def mount(
             fine_group_ids,
         ),
         hash_block_size,
+        alignment_tokens=alignment_tokens,
     )
     tier = BlockTierState(gpu_pool, group_ids, host_pool=host_pool)
     tier.listener = units

@@ -548,6 +548,13 @@ class SimpleCPUOffloadScheduler:
         self._gpu_block_pool = gpu_block_pool
         # Unified tier: GPU block state + units.
         if self.tier_runtime is not None and gpu_block_pool.tier is None:
+            from vllm.merlin.kv_tier_lookup import closure_alignment
+
+            alignment = (
+                self.hash_block_size
+                if self.cpu_coordinator.enable_partial_hash_hits
+                else self.cpu_coordinator.scheduler_block_size
+            )
             self.tier_runtime.units = kv_host_tier_units.mount(
                 gpu_block_pool,
                 self.cpu_block_pool,
@@ -560,6 +567,9 @@ class SimpleCPUOffloadScheduler:
                 # Its resolved fine lookup.
                 kv_restore_dependencies.fine_grained_group_ids(
                     self.cpu_coordinator
+                ),
+                alignment_tokens=closure_alignment(
+                    self.cpu_coordinator, alignment
                 ),
             )
         # Write-back engine on the tier state.
@@ -605,6 +615,11 @@ class SimpleCPUOffloadScheduler:
         # take/release reach the copy scheduler (adds the step). Tier only.
         if self.tier_runtime is not None:
             kv_cache_manager.tier_hooks = kv_host_tier_hooks.KVCMLifecycleAdapter(self)
+            # Enable turn-end grace pins whenever the host tier is active (e.g.
+            # Hy4 Flash without partial hash hits) so CopyQueue's GRACE lane
+            # proactively offloads finished turns before free-queue reclamation.
+            if getattr(kv_cache_manager, "enable_caching", False):
+                kv_cache_manager.enable_grace_pins = True
 
     # Lifecycle plumbing (``kv_host_tier_hooks``): the
     # copy scheduler registers itself here; no-ops until it does.
@@ -2256,6 +2271,21 @@ class SimpleCPUOffloadScheduler:
             )
         return total
 
+    def record_unit(self, request: "Request") -> Any:
+        """Record a finished or preempted request's restore unit, and publish it
+        immediately when all required members are already committed on host."""
+        units = self.tier_runtime.units if self.tier_runtime is not None else None
+        if units is None:
+            return None
+        unit = units.record_finished(request)
+        if (
+            unit is not None
+            and not units.is_published(unit.uid)
+            and units.is_host_complete(unit)
+        ):
+            units.publish_unit(unit.uid, self._sched_step)
+        return unit
+
     def request_finished_all_groups(
         self,
         request: "Request",
@@ -2274,9 +2304,7 @@ class SimpleCPUOffloadScheduler:
         if self.tier_runtime is not None:
             self.tier_runtime.on_request_finished(request)
         # The restore unit, rediscovered by key.
-        unit = None
-        if self.tier_runtime is not None and self.tier_runtime.units is not None:
-            unit = self.tier_runtime.units.record_finished(request)
+        unit = self.record_unit(request)
         # Lifecycle: the finished turn to the copy scheduler.
         kv_host_tier_hooks.notify_finished(self, request, unit)
         return self.request_finished(request, block_ids=[])

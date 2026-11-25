@@ -181,6 +181,29 @@ def _worker(runner: Any, *, disabled_ok: bool = False) -> Any:
     return worker if getattr(worker, "commit_acks", None) is not None else None
 
 
+def _has_deferred_kv_writer(runner: Any) -> bool:
+    """Whether a non-last PP rank defers KV/state writes to the later
+    ``update_pp_decode_requests`` call.
+
+    Models without deferred writers (``DefaultModelState`` /
+    ``DeepseekV41ModelState``, e.g. Hy4 Flash) complete all KV writes during the
+    forward pass and retire via ``finish_forward()``; deferring acks for them
+    causes ``get_prev_sampled_outputs()`` to mask finished requests' blocks on
+    PP > 1 even though those writes already finished.
+    """
+    model_state = getattr(runner, "model_state", None)
+    if model_state is None:
+        return True
+    from vllm.v1.worker.gpu.model_states.interface import ModelState
+
+    if isinstance(model_state, ModelState):
+        return (
+            type(model_state).postprocess_state
+            is not ModelState.postprocess_state
+        )
+    return True
+
+
 def begin_step(runner: Any, scheduler_output: Any) -> None:
     worker = _worker(runner, disabled_ok=True)
     if worker is None:
@@ -195,11 +218,13 @@ def begin_step(runner: Any, scheduler_output: Any) -> None:
         return
     pp = getattr(runner, "pp_handler", None)
     # A non-last PP rank whose execute runs a forward reaches sample_tokens,
-    # which decides whether the step's writer is deferred (defer_step).
+    # which decides whether the step's writer is deferred (defer_step), unless
+    # its model state has no deferred KV writer at all.
     hold = (
         pp is not None
         and not getattr(pp, "is_last_rank", True)
         and getattr(scheduler_output, "total_num_scheduled_tokens", 0) > 0
+        and _has_deferred_kv_writer(runner)
     )
     worker.commit_acks.begin_step(
         metadata.scheduled_step, metadata.acked_step, hold=hold
@@ -209,6 +234,9 @@ def begin_step(runner: Any, scheduler_output: Any) -> None:
 def defer_step(runner: Any, input_batch: Any) -> None:
     worker = _worker(runner)
     if worker is None:
+        return
+    if not _has_deferred_kv_writer(runner):
+        worker.commit_acks.not_deferred()
         return
     slot = runner.pp_handler.queue[-1]
     if slot is None:

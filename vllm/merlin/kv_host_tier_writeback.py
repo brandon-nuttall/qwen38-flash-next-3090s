@@ -82,7 +82,7 @@ deadlocked by the cap. Pinned restore sources are reported as
 """
 
 import time
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any
 
@@ -1337,7 +1337,9 @@ class WriteBack:
         # running requests' and the KV-holding waiters' (a parked
         # streaming session resumes writing its own table in place). Lane 1
         # and H_run read ``running`` only.
-        self.note_frontiers(coordinator, (*running, *kv_holders))
+        self.note_frontiers(
+            coordinator, (*running, *kv_holders), num_scheduled=num_scheduled
+        )
         # Exact H_run only matters when the free pool is near the bound: with
         # the free blocks above the conservative estimate plus every pin the
         # walker could make this step, the estimate and the exact value stop
@@ -1400,7 +1402,13 @@ class WriteBack:
         self.headroom_now = total
         return total
 
-    def note_frontiers(self, coordinator: Any, running: Sequence["Request"]) -> None:
+    def note_frontiers(
+        self,
+        coordinator: Any,
+        running: Sequence["Request"],
+        *,
+        num_scheduled: Mapping[str, int] | None = None,
+    ) -> None:
         """The write frontiers of ``running`` (the running
         requests and the KV-holding waiters, which may resume writing their
         own tables), replaced every scheduler step
@@ -1465,6 +1473,8 @@ class WriteBack:
                     if not b.is_null:
                         live.add(b.block_id)
         self.gpu_pool.tier.live_ids = frozenset(live)
+        if self.units is not None:
+            self.units.set_running_sw_keys(running, num_scheduled=num_scheduled)
 
     def account_quarantine(self, abandoned_loads: int = 0) -> None:
         """Quarantined storage: copies of an older epoch still in flight plus

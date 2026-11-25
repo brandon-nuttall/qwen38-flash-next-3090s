@@ -101,7 +101,11 @@ class MerlinKVHostTierConnector(SimpleCPUOffloadConnector):
         runtime = getattr(manager, "tier_runtime", None)
         units = getattr(runtime, "units", None)
         if units is not None:
-            units.record_finished(request)
+            record_unit = getattr(manager, "record_unit", None)
+            if callable(record_unit):
+                record_unit(request)
+            else:
+                units.record_finished(request)
             # A preempted request goes back to the front of the waiting
             # queue: it claims its computed prefix again, ahead of arrivals.
             units.claim_waiting(request, front=True)

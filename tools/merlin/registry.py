@@ -830,6 +830,19 @@ def host_row_bytes(p: dict[str, Any] | None) -> int | None:
 
 def restore_unit_rows(model: str | None, p: dict[str, Any] | None) -> int | None:
     """Host rows per rank of one 262K restore unit on ``p``; None for a family without a known page layout."""
+    if model == "hy4flash":
+        if not p:
+            return None
+        srv = p.get("serve") or {}
+        lay = p.get("layout") or {}
+        block = int(srv.get("block_size") or 64)
+        dcp = int(srv.get("decode_context_parallel_size") or 1)
+        pp = int(lay.get("pp") or srv.get("pipeline_parallel") or 2)
+        mla = -(-RESTORE_UNIT_TOKENS // (block * dcp))
+        idx = -(-RESTORE_UNIT_TOKENS // (block * 4 * dcp))
+        swa_groups = HY4_SWA_GROUPS * max(1, 2 // max(pp, 1))
+        swa_per_group = -(-(HY4_SWA_WINDOW - 1) // block)
+        return mla + idx + swa_groups * swa_per_group
     page = (p or {}).get("serve", {}).get("block_size") or RESTORE_UNIT_PAGE_TOKENS.get(model or "")
     if not page:
         return None
@@ -839,7 +852,7 @@ def restore_unit_rows(model: str | None, p: dict[str, Any] | None) -> int | None
 def restore_unit_min_gib_per_rank(model: str | None, p: dict[str, Any] | None, ranks: int) -> int:
     """Whole GiB per rank the engine needs for one 262K restore unit on ``p``: the unit's rows plus the arena's null
     row, at the row's size. Rows without a recorded block count fall back to 4 GiB per server."""
-    rows = restore_unit_rows(model, p) if model in RESTORE_UNIT_PAGE_TOKENS else None
+    rows = restore_unit_rows(model, p) if (model in RESTORE_UNIT_PAGE_TOKENS or model == "hy4flash") else None
     row = host_row_bytes(p)
     if rows and row:
         return max(1, -(-(rows + 1) * row // (1 << 30)))

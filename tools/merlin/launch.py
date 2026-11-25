@@ -97,6 +97,9 @@ FN_KV_TIER_EXPERIMENTAL = ("WARNING: KV RAM cache on Flash-Next is experimental:
 # The 27B KV RAM cache (TP1 / TP2 / TP4, ThinkingCap, no-P2P twins) is experimental as well.
 KV_TIER_EXPERIMENTAL_27B = ("WARNING: KV RAM cache on the 27B is experimental: a session evicted under heavy "
                             "concurrent prefill may recompute (output identical)")
+# Hy4 Flash KV RAM cache (TP2xPP2xDCP2, TP4xPP1xDCP4, TP4xPP2xDCP2): experimental and untested on hardware.
+KV_TIER_UNTESTED_HY4 = ("WARNING: KV RAM cache on Hy4 Flash is experimental and untested on hardware: "
+                        "a session evicted under heavy concurrent prefill may recompute (output identical)")
 FN_MARLIN_MOE_CFG = "MERLIN_MARLIN_MOE_CFG"  # per-shape Marlin MoE kernel choice; the engine parses it (vllm/merlin/marlin_moe_cfg.py)
 FN_LPT_DEFAULT = "512"  # Flash-Next --long-prefill-token-threshold default; LPT=0 = off
 # Flash-Next prefill runs (vllm/merlin/prefill_runs.py), on by default; PREFILL_RUNS=0 = off. The decode share and the
@@ -664,8 +667,6 @@ def build(
             if len(flag) > 2 and flag.startswith("--") and name.startswith(flag):
                 raise LaunchError(f"{name} is unsupported by Merlin: tokenizer initialization is required "
                                   "to validate prompt token IDs; remove this flag from the extra arguments", 2)
-    if model == "hy4flash":
-        _hy4_refuse_kv_tier(env)
     # --swarm (SWARM=1): checked before any builder runs, on every family; sets the KV RAM cache when unset
     swarm_note = _swarm_prepare(p, env) if swarm_requested(env) else None
     # The other families pass the caller's MERLIN_ exports to the engine as they are, the cold-expert knobs included:
@@ -2472,13 +2473,6 @@ HY4_LAYERS = 42  # HYV4FlashConfig.num_hidden_layers; PP_PARTITION must sum to i
 HY4_ENGRAM_CONFIG = '{"cpu_offload":true,"dp_shared_memory":false}'
 # the text lane of a checkpoint naming the VL class
 HY4_ARCH_OVERRIDE = '{"architectures":["HYV4FlashForCausalLM"]}'
-# The KV RAM cache is refused on every hy4flash row: on
-# 4 x RTX 3090 its host copies were written but never restored, so it gave no hits
-HY4_KV_TIER_UNSUPPORTED = (
-    "the KV RAM cache is not supported on Hy4 Flash yet (--kv-ram-cache, --swarm, "
-    "SWARM=1 or MERLIN_KV_HOST_TIER_GIB above 0): unset it, or set "
-    "MERLIN_KV_HOST_TIER_GIB=0"
-)
 # DFly2 is on by default: the drafter's weights ship in
 # the target checkpoint (BF16 draft head; no int8 drafter variant), K from SPEC_K within
 # the engine's range (DFlyConfig resolve_num_speculative_tokens). DFLY=0 turns it off.
@@ -2576,10 +2570,16 @@ def hy4_engram(environ: dict[str, str], ckpt) -> str:
     return want
 
 
-def _hy4_memory_warnings(engram: str, read=None) -> list[str]:
+def _hy4_memory_warnings(
+    engram: str,
+    tier_total_gib: int = 0,
+    tier_per_rank_gib: int = 0,
+    read=None,
+) -> list[str]:
     """the host RAM and memlock checks sized for the
-    variant served, as warnings (the installer's checks are the refusals): MemAvailable
-    under hy4_ram_need_gib, and a memlock limit under the variant's Engram tables."""
+    variant served and optional KV RAM cache, as warnings (the installer's checks
+    are the refusals): MemAvailable under hy4_ram_need_gib, and a memlock limit
+    under the KV RAM cache arena or the variant's Engram tables."""
     def _read(path):
         try:
             with open(path, encoding="utf-8") as f:
@@ -2589,15 +2589,16 @@ def _hy4_memory_warnings(engram: str, read=None) -> list[str]:
 
     read = read or _read
     out: list[str] = []
-    need = hy4_ram_need_gib(engram)
+    need = hy4_ram_need_gib(engram, tier_total_gib)
     tables = HY4_ENGRAM_GIB[engram]
     m = re.search(r"(?m)^MemAvailable:\s*(\d+)\s*kB", read("/proc/meminfo") or "")
     if m and int(m.group(1)) / 1048576 < need:
+        tier_part = f" + KV RAM cache {tier_total_gib} GiB" if tier_total_gib > 0 else ""
         out.append(
             f"WARNING: host memory available now is {int(m.group(1)) // 1048576} GiB "
             f"(MemAvailable); Hy4 Flash with the {engram.upper()} Engram tables needs "
-            f"~{need:.0f} GiB (tables ~{tables:.0f} GiB pinned + engine processes); the "
-            "load is expected to be OOM-killed"
+            f"~{need:.0f} GiB (tables ~{tables:.0f} GiB pinned + engine processes{tier_part}); "
+            "the load is expected to be OOM-killed"
         )
     try:
         import resource
@@ -2609,6 +2610,12 @@ def _hy4_memory_warnings(engram: str, read=None) -> list[str]:
     cap = re.search(r"(?m)^CapEff:\s*([0-9a-fA-F]+)", read("/proc/self/status") or "")
     if cap and (int(cap.group(1), 16) >> 14) & 1:  # CAP_IPC_LOCK
         return out
+    if tier_per_rank_gib > 0 and soft < tier_per_rank_gib * 2**30:
+        out.append(
+            f"WARNING: the memlock limit is {soft / 2**30:.2f} GiB; the KV RAM cache "
+            f"({tier_per_rank_gib} GiB per rank) locks its host arena per rank "
+            "(ulimit -l unlimited; systemd LimitMEMLOCK=infinity; docker --ulimit memlock=-1)"
+        )
     if soft < tables * 2**30:
         out.append(
             f"WARNING: the memlock limit is {soft / 2**30:.2f} GiB; the {engram.upper()} "
@@ -2654,22 +2661,6 @@ def hy4_cold_freed_bytes(n_layers: int, hot_frac: float, local_experts: int, chu
     cold = local_experts - hot
     rows = chunk * HY4_TOPK * HY4_ROUTED_LATENT * 2
     return n_layers * (cold * HY4_EXPERT_PACKED_BYTES - hot * HY4_EXPERT_SCALE_BYTES) - rows
-
-
-def _hy4_refuse_kv_tier(env: dict[str, str]) -> None:
-    """refuse the KV RAM cache on hy4flash before --swarm
-    sets it: SWARM=1, or MERLIN_KV_HOST_TIER_GIB above 0. Blank or 0 is off; a value
-    that is not a whole number is refused as on the other families."""
-    tier = (env.get(FN_KV_HOST_TIER) or "").strip()
-    if tier and not (tier.isascii() and tier.isdigit() and len(tier) <= 6):
-        shown = tier if len(tier) <= 40 else f"{tier[:20]}...({len(tier)} characters)"
-        raise LaunchError(
-            f"{FN_KV_HOST_TIER} must be a whole number of GiB per rank (0 = off), "
-            f"got {shown!r}",
-            2,
-        )
-    if swarm_requested(env) or (tier and int(tier) > 0):
-        raise LaunchError(HY4_KV_TIER_UNSUPPORTED, 2)
 
 
 def _hy4_cold_experts(environ_in, env, parts, pp, tp, ep, chunk, ckpt, repo, notes) -> None:
@@ -2727,8 +2718,10 @@ def _build_hy4flash(reg, p, checkpoint, ckpt, env, extra, repo: Path) -> Plan:
     launch.py --profile lane: hy4flash-quad-3090 is testing (full-model runs passed, pool
     measured), the TP4 and 8-card rows are untested (pool estimates). DFly2
     (method dfly, K = SPEC_K, default HY4_DFLY_K) is on by default; DFLY=0 turns it
-    off. The KV RAM cache and --swarm are refused before the builder runs
-    (_hy4_refuse_kv_tier). An extra --speculative-config merges into the lane's
+    off. The host-RAM KV tier (MERLIN_KV_HOST_TIER_GIB, GiB per rank, 0 = off) is
+    supported (experimental and untested on hardware, compatible with DFly2), while
+    --swarm / SWARM=1 remains refused (_swarm_prepare: no swarm session cap is
+    qualified). An extra --speculative-config merges into the lane's
     (_merge_speculative_config: no method or K change)."""
     environ_in = dict(env)
     notes: list[str] = []
@@ -2759,15 +2752,40 @@ def _build_hy4flash(reg, p, checkpoint, ckpt, env, extra, repo: Path) -> Plan:
     # the engine reads the tables' dtype from the checkpoint
     engram = hy4_engram(environ_in, ckpt)
     env.pop(HY4_ENGRAM_ENV, None)
+    # The host-RAM KV tier (MERLIN_KV_HOST_TIER_GIB, GiB per rank, 0 = off): experimental
+    # and untested on hardware, compatible with DFly2, held to the 262K restore-unit
+    # minimum. Blank or 0 is off and not exported; ASCII digits only and int() guarded.
+    tier = (environ_in.get(FN_KV_HOST_TIER) or "").strip()
+    tier_gib = 0
+    if tier:
+        try:
+            if not (tier.isascii() and tier.isdigit() and len(tier) <= 6):
+                raise ValueError
+            tier_gib = int(tier)
+        except ValueError:
+            shown = tier if len(tier) <= 40 else f"{tier[:20]}...({len(tier)} characters)"
+            raise LaunchError(
+                f"{FN_KV_HOST_TIER} must be a whole number of GiB per rank (0 = off), got {shown!r}",
+                2,
+            ) from None
+    cards = int(lay["tp"]) * int(lay["pp"])
+    if tier_gib > 0:
+        _restore_unit_gate("hy4flash", p, tier_gib)
+        env[FN_KV_HOST_TIER] = str(tier_gib)
+        notes.append(KV_TIER_UNTESTED_HY4)
+        notes.append(
+            f"note: {FN_KV_HOST_TIER}={tier_gib}: {tier_gib} GiB per rank "
+            f"({tier_gib * cards} GiB across {cards} ranks); host RAM available "
+            f"needed ~{hy4_ram_need_gib(engram, tier_gib * cards):.0f} GiB"
+        )
+    else:
+        env.pop(FN_KV_HOST_TIER, None)
     if engram != HY4_ENGRAM_DEFAULT:
         notes.append(
             f"note: {HY4_ENGRAM_ENV}={engram}: the {engram.upper()} Engram tables, "
             f"~{HY4_ENGRAM_GIB[engram]:.0f} GiB pinned in host RAM (~"
-            f"{hy4_ram_need_gib(engram):.0f} GiB available needed); not benched yet"
+            f"{hy4_ram_need_gib(engram, tier_gib * cards):.0f} GiB available needed); not benched yet"
         )
-    # The tier is refused before the builder runs
-    # (_hy4_refuse_kv_tier); an exported 0 is off and not passed on
-    env.pop(FN_KV_HOST_TIER, None)
     # DFly2 on unless DFLY=0
     user_spec = any(_speculative_config_arg(a) is not None for a in extra)
     spec_k_set = (environ_in.get("SPEC_K") or "") != ""
@@ -3923,8 +3941,15 @@ def host_phase(plan: Plan) -> None:
                                         0.0 if env.get("VLLM_E2_PLE_STORE") == "disk" else ple_table_gib(ple))
         if refusal and os.environ.get("MERLIN_SKIP_RAM_CHECK") != "1":  # =1 keeps the warning only
             raise LaunchError(refusal, 1)
-    if fam == "hy4flash":  # sized for the variant served
-        for w in _hy4_memory_warnings(plan.engram or HY4_ENGRAM_DEFAULT):
+    if fam == "hy4flash":  # sized for the variant served and optional KV RAM cache
+        lay = plan.profile.get("layout") or {}
+        cards = int(lay.get("tp", 1)) * int(lay.get("pp", 1)) if lay else 4
+        per_rank = int(env.get(FN_KV_HOST_TIER) or 0)
+        for w in _hy4_memory_warnings(
+            plan.engram or HY4_ENGRAM_DEFAULT,
+            tier_total_gib=per_rank * cards,
+            tier_per_rank_gib=per_rank,
+        ):
             print(w, file=sys.stderr)
     if fam in ("svl", "ornith", "hy4flash"):
         os.makedirs(env["VLLM_CACHE_ROOT"], exist_ok=True)

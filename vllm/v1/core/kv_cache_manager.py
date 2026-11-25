@@ -1026,7 +1026,12 @@ class KVCacheManager:
                 candidates = owners if candidates is None else candidates & owners
         if not candidates:
             return
-        reach = num_hit_tokens + 2 * self.block_pool.hash_block_size
+        align = getattr(
+            self.coordinator,
+            "_cache_hit_alignment_tokens",
+            self.block_pool.hash_block_size,
+        )
+        reach = num_hit_tokens + max(2 * self.block_pool.hash_block_size, align)
         for request_id in [r for r in self._grace_block_ids if r in candidates]:
             if reach >= self._grace_prompt_tokens.get(request_id, 0):
                 # Lifecycle: a hit ends the grace (its copy is moot)

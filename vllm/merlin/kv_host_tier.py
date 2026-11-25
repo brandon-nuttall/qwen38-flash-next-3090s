@@ -11,7 +11,7 @@ connector-less boot is unchanged.
 
 The engine tells the tier apart from a user-supplied ``--kv-transfer-config``
 by matching the exact config this module generates (``is_kv_host_tier``). Only
-that config gets the four exemptions below; any other connector keeps the
+that config gets the exemptions below; any other connector keeps the
 upstream rules:
 
 - RecoverSSM: ``--use-replayssm`` refuses every KV connector upstream. The tier
@@ -23,6 +23,13 @@ upstream rules:
   non-last PP ranks the runner frees a step's finished/preempted rows before the deferred commit
   (``free_before_deferred_commit``), so a stale commit can never write into a
   block the scheduler has reallocated to a host load.
+- Hy4 Flash + DFly2: ``HYV4FlashForCausalLM`` (Sparse MLA + IndexPool + causal
+  SWA without bounded prefix replay) and ``HYV4DFlySpeculator`` accept the
+  tier even though they refuse general KV connectors / PD disaggregation.
+  Their non-last PP ranks have no deferred KV writer, so forwards retire
+  directly via ``finish_forward()``; SWA dependencies at the running request's
+  aligned boundary remain retained across intermediate frees until advance or
+  finish.
 - Side-cache layout: kept (``keeps_side_cache_layout``). The slot-packed QSA
   ring group is not prefix-cacheable, so the tier never stores, finds or loads
   it; the worker copies whole pool blocks by the other groups' ids and skips
